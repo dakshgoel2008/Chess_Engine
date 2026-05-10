@@ -6,7 +6,6 @@ from config import ANIMATION_DURATION, DIMENSION, HEIGHT, SQUARE_SIZE, WIDTH
 
 
 def load_images() -> dict[str, p.Surface]:
-    """Load and return scaled chess piece images."""
     pieces = ["wB", "wK", "wN", "wp", "wQ", "wR", "bB", "bK", "bN", "bp", "bQ", "bR"]
     images = {}
     for piece in pieces:
@@ -41,10 +40,8 @@ def draw_game_state(
 
 
 def animate_move(screen, board, images, move, gs, clock):
-    """Animate a chess move from start to end position."""
     start_time = p.time.get_ticks()
 
-    # Calculate start and end positions in pixels
     start_x = move.startCol * SQUARE_SIZE
     start_y = move.startRow * SQUARE_SIZE
     end_x = move.endCol * SQUARE_SIZE
@@ -71,7 +68,9 @@ def animate_move(screen, board, images, move, gs, clock):
 
         # Calculate current position
         current_x = start_x + (end_x - start_x) * progress
-        current_y = start_y + (end_y - start_y) * progress
+        # 3D Lift animation arc
+        lift_height = math.sin(progress * math.pi) * (SQUARE_SIZE * 0.8)
+        current_y = start_y + (end_y - start_y) * progress - lift_height
 
         # Draw everything
         draw_board(screen)
@@ -79,6 +78,22 @@ def animate_move(screen, board, images, move, gs, clock):
 
         # Draw all pieces except the moving one
         draw_pieces(screen, temp_board, images)
+
+        # Draw dynamic shadow for animating piece
+        shadow_base_y = start_y + (end_y - start_y) * progress
+        shadow_scale = 1.0 - (math.sin(progress * math.pi) * 0.4)
+
+        shadow_surf = p.Surface((SQUARE_SIZE, SQUARE_SIZE), p.SRCALPHA)
+        s_width = int(SQUARE_SIZE * 0.7 * shadow_scale)
+        s_height = int(SQUARE_SIZE * 0.3 * shadow_scale)
+        s_x = (SQUARE_SIZE - s_width) // 2
+        s_y = SQUARE_SIZE - s_height - 5
+        p.draw.ellipse(
+            shadow_surf,
+            (0, 0, 0, int(80 * shadow_scale)),
+            p.Rect(s_x, s_y, s_width, s_height),
+        )
+        screen.blit(shadow_surf, (current_x, shadow_base_y))
 
         # Draw the moving piece at current position
         screen.blit(images[piece], (current_x, current_y))
@@ -92,7 +107,6 @@ def animate_move(screen, board, images, move, gs, clock):
 
 
 def animate_castling_rook(screen, images, move, progress):
-    """Animate the rook movement during castling."""
     if move.endCol - move.startCol == 2:  # King side castle
         rook_start_col = 7
         rook_end_col = 5
@@ -114,47 +128,84 @@ def animate_castling_rook(screen, images, move, progress):
 
 
 def ease_in_out(t):
-    """Easing function for smoother animation."""
     return t * t * (3.0 - 2.0 * t)
 
 
 def draw_board(screen) -> None:
-    """Draw the chess board squares."""
-    colors = [p.Color(255, 206, 158), p.Color(209, 139, 71)]
+    light_color = p.Color(240, 217, 181)
+    dark_color = p.Color(181, 136, 99)
+    colors = [light_color, dark_color]
     for r in range(DIMENSION):
         for c in range(DIMENSION):
-            color = colors[(r + c) & 1]
-            p.draw.rect(
-                screen,
-                color,
-                p.Rect(c * SQUARE_SIZE, r * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE),
+            base_color = colors[(r + c) & 1]
+            rect = p.Rect(c * SQUARE_SIZE, r * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE)
+            p.draw.rect(screen, base_color, rect)
+
+            # Bevel effect for depth
+            highlight = p.Surface((SQUARE_SIZE, SQUARE_SIZE), p.SRCALPHA)
+            # Top and left bright edges
+            p.draw.polygon(
+                highlight,
+                (255, 255, 255, 60),
+                [
+                    (0, 0),
+                    (SQUARE_SIZE, 0),
+                    (SQUARE_SIZE - 4, 4),
+                    (4, 4),
+                    (4, SQUARE_SIZE - 4),
+                    (0, SQUARE_SIZE),
+                ],
             )
+            # Bottom and right dark edges
+            p.draw.polygon(
+                highlight,
+                (0, 0, 0, 40),
+                [
+                    (SQUARE_SIZE, SQUARE_SIZE),
+                    (0, SQUARE_SIZE),
+                    (4, SQUARE_SIZE - 4),
+                    (SQUARE_SIZE - 4, SQUARE_SIZE - 4),
+                    (SQUARE_SIZE - 4, 4),
+                    (SQUARE_SIZE, 0),
+                ],
+            )
+            screen.blit(highlight, rect.topleft)
+
+
+def draw_drop_shadow(screen, x, y):
+    shadow = p.Surface((SQUARE_SIZE, SQUARE_SIZE), p.SRCALPHA)
+    shadow_width = int(SQUARE_SIZE * 0.7)
+    shadow_height = int(SQUARE_SIZE * 0.3)
+    shadow_x = (SQUARE_SIZE - shadow_width) // 2
+    shadow_y = SQUARE_SIZE - shadow_height - 5
+    p.draw.ellipse(
+        shadow, (0, 0, 0, 80), p.Rect(shadow_x, shadow_y, shadow_width, shadow_height)
+    )
+    screen.blit(shadow, (x, y))
 
 
 def draw_pieces(screen, board, images) -> None:
-    """Draw the pieces on top of the board."""
     for r in range(DIMENSION):
         for c in range(DIMENSION):
             piece = board[r][c]
             if piece != ".":
-                rect = p.Rect(
-                    c * SQUARE_SIZE, r * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE
-                )
-                screen.blit(images[piece], rect)
+                x = c * SQUARE_SIZE
+                y = r * SQUARE_SIZE
+                draw_drop_shadow(screen, x, y)
+                screen.blit(images[piece], (x, y))
 
 
 def draw_pieces_with_animation(screen, board, images, animating_move, progress):
-    """Draw pieces with one piece being animated."""
     for r in range(DIMENSION):
         for c in range(DIMENSION):
             piece = board[r][c]
             if piece != "." and not (
                 r == animating_move.startRow and c == animating_move.startCol
             ):
-                rect = p.Rect(
-                    c * SQUARE_SIZE, r * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE
-                )
-                screen.blit(images[piece], rect)
+                x = c * SQUARE_SIZE
+                y = r * SQUARE_SIZE
+                draw_drop_shadow(screen, x, y)
+                screen.blit(images[piece], (x, y))
 
     # Draw the animating piece
     start_x = animating_move.startCol * SQUARE_SIZE
@@ -163,32 +214,74 @@ def draw_pieces_with_animation(screen, board, images, animating_move, progress):
     end_y = animating_move.endRow * SQUARE_SIZE
 
     current_x = start_x + (end_x - start_x) * progress
-    current_y = start_y + (end_y - start_y) * progress
+    lift_height = math.sin(progress * math.pi) * (SQUARE_SIZE * 0.8)
+    current_y = start_y + (end_y - start_y) * progress - lift_height
+
+    shadow_base_y = start_y + (end_y - start_y) * progress
+    shadow_scale = 1.0 - (math.sin(progress * math.pi) * 0.4)
+
+    shadow_surf = p.Surface((SQUARE_SIZE, SQUARE_SIZE), p.SRCALPHA)
+    s_width = int(SQUARE_SIZE * 0.7 * shadow_scale)
+    s_height = int(SQUARE_SIZE * 0.3 * shadow_scale)
+    s_x = (SQUARE_SIZE - s_width) // 2
+    s_y = SQUARE_SIZE - s_height - 5
+    p.draw.ellipse(
+        shadow_surf,
+        (0, 0, 0, int(80 * shadow_scale)),
+        p.Rect(s_x, s_y, s_width, s_height),
+    )
+    screen.blit(shadow_surf, (current_x, shadow_base_y))
 
     screen.blit(images[animating_move.pieceMoved], (current_x, current_y))
 
 
 def highlight_squares(screen, selected_sq, valid_moves, gs) -> None:
-    """Highlight selected square, valid moves, and game state indicators."""
     if selected_sq:
         r, c = selected_sq
-        s = p.Surface((SQUARE_SIZE, SQUARE_SIZE))
-        s.set_alpha(100)
-        s.fill(p.Color("blue"))
+        s = p.Surface((SQUARE_SIZE, SQUARE_SIZE), p.SRCALPHA)
+        # Highlight selected piece with a subtle glow
+        p.draw.circle(
+            s,
+            (100, 200, 255, 120),
+            (SQUARE_SIZE // 2, SQUARE_SIZE // 2),
+            SQUARE_SIZE // 2 - 4,
+        )
         screen.blit(s, (c * SQUARE_SIZE, r * SQUARE_SIZE))
 
-        s.fill(p.Color("yellow"))
+        # Valid moves indicators (dots or open circles)
         for move in valid_moves:
             if move.startRow == r and move.startCol == c:
                 er = move.endRow
                 ec = move.endCol
-                screen.blit(s, (ec * SQUARE_SIZE, er * SQUARE_SIZE))
+                move_surf = p.Surface((SQUARE_SIZE, SQUARE_SIZE), p.SRCALPHA)
+                if gs.board[er][ec] != ".":
+                    p.draw.circle(
+                        move_surf,
+                        (255, 100, 100, 200),
+                        (SQUARE_SIZE // 2, SQUARE_SIZE // 2),
+                        SQUARE_SIZE // 2 - 5,
+                        4,
+                    )
+                else:
+                    p.draw.circle(
+                        move_surf,
+                        (150, 255, 150, 180),
+                        (SQUARE_SIZE // 2, SQUARE_SIZE // 2),
+                        SQUARE_SIZE // 6,
+                    )
+                screen.blit(move_surf, (ec * SQUARE_SIZE, er * SQUARE_SIZE))
 
     if gs.inCheck():
         king_row, king_col = gs.whiteKingLoc if gs.white_to_move else gs.blackKingLoc
-        s = p.Surface((SQUARE_SIZE, SQUARE_SIZE))
-        s.set_alpha(100)
-        s.fill(p.Color("red"))
+        s = p.Surface((SQUARE_SIZE, SQUARE_SIZE), p.SRCALPHA)
+        # Intense red glow for check
+        for i in range(3):
+            p.draw.circle(
+                s,
+                (255, 0, 0, 80 - i * 20),
+                (SQUARE_SIZE // 2, SQUARE_SIZE // 2),
+                SQUARE_SIZE // 2 - i * 2,
+            )
         screen.blit(s, (king_col * SQUARE_SIZE, king_row * SQUARE_SIZE))
 
     if gs.checkMate() == "checkmate":
@@ -221,9 +314,7 @@ def highlight_squares(screen, selected_sq, valid_moves, gs) -> None:
 
 
 def draw_labels(screen, font) -> None:
-    """Draw coordinate labels."""
     for i in range(DIMENSION):
-        # Files (a-h)
         label = font.render(chr(ord("a") + i), True, p.Color("black"))
         screen.blit(
             label,
@@ -239,9 +330,50 @@ def draw_labels(screen, font) -> None:
         )
 
 
-# Additional animation utilities
+def draw_menu(screen) -> None:
+    for y in range(HEIGHT):
+        color = (max(20, 40 - y // 20), max(30, 50 - y // 20), max(50, 80 - y // 15))
+        p.draw.line(screen, color, (0, y), (WIDTH, y))
+
+    font_title = p.font.SysFont("Helvetica", 46, bold=True)
+    font_options = p.font.SysFont("Helvetica", 24, bold=True)
+
+    title_text = font_title.render("CHESS", True, p.Color("white"))
+    # Add title drop shadow
+    title_shadow = font_title.render("CHESS", True, p.Color("black"))
+    screen.blit(
+        title_shadow, (WIDTH // 2 - title_text.get_width() // 2 + 3, HEIGHT // 4 + 3)
+    )
+    screen.blit(title_text, (WIDTH // 2 - title_text.get_width() // 2, HEIGHT // 4))
+
+    options = [
+        ("1. Player vs Player", p.Rect(WIDTH // 2 - 150, HEIGHT // 2 - 40, 300, 50)),
+        ("2. Player vs AI", p.Rect(WIDTH // 2 - 150, HEIGHT // 2 + 30, 300, 50)),
+        ("3. AI vs AI", p.Rect(WIDTH // 2 - 150, HEIGHT // 2 + 100, 300, 50)),
+    ]
+
+    for text, rect in options:
+        # Check mouse hover
+        mouse_pos = p.mouse.get_pos()
+        hovered = rect.collidepoint(mouse_pos)
+
+        bg_color = (60, 100, 200) if hovered else (40, 60, 100)
+        p.draw.rect(screen, bg_color, rect, border_radius=12)
+        p.draw.rect(screen, (200, 220, 255), rect, 2, border_radius=12)  # border
+
+        text_surf = font_options.render(text, True, p.Color("white"))
+        screen.blit(
+            text_surf,
+            (
+                rect.x + rect.width // 2 - text_surf.get_width() // 2,
+                rect.y + rect.height // 2 - text_surf.get_height() // 2,
+            ),
+        )
+
+    return options
+
+
 def animate_capture(screen, images, captured_piece, position, clock):
-    """Animate piece capture with fade out effect."""
     start_time = p.time.get_ticks()
     fade_duration = 200
 
@@ -265,7 +397,6 @@ def animate_capture(screen, images, captured_piece, position, clock):
 
 
 def animate_check_warning(screen, king_pos, clock):
-    """Animate a pulsing red highlight for check warning."""
     start_time = p.time.get_ticks()
     pulse_duration = 500
 

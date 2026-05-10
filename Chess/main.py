@@ -1,11 +1,13 @@
 import asyncio
 import time
+import copy
+import concurrent.futures
 
 import pygame as p
 from config import DIMENSION, HEIGHT, MAX_FPS, SQUARE_SIZE, WIDTH
 from engine import Move, State
 from smartMoveFinder import findBestMove, findRandomMove
-from ui import animate_move, draw_game_state, load_images
+from ui import animate_move, draw_game_state, draw_menu, load_images
 
 
 async def main() -> None:
@@ -27,6 +29,34 @@ async def main() -> None:
     playerOne = True  # True for humans and False for AI
     playerTwo = False  # initially AI move will be False
     gameOver = False
+
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    ai_thinking = False
+    ai_future = None
+
+    mode_selected = False
+    while not mode_selected and running:
+        options = draw_menu(screen)
+        p.display.flip()
+        for e in p.event.get():
+            if e.type == p.QUIT:
+                running = False
+                mode_selected = True
+            elif e.type == p.MOUSEBUTTONDOWN:
+                loc = p.mouse.get_pos()
+                if options[0][1].collidepoint(loc):
+                    playerOne = True
+                    playerTwo = True
+                    mode_selected = True
+                elif options[1][1].collidepoint(loc):
+                    playerOne = True
+                    playerTwo = False
+                    mode_selected = True
+                elif options[2][1].collidepoint(loc):
+                    playerOne = False
+                    playerTwo = False
+                    mode_selected = True
+        await asyncio.sleep(0)
 
     while running:
         humanTurn = (gs.white_to_move and playerOne) or (
@@ -92,20 +122,30 @@ async def main() -> None:
 
         # AI move finder:
         if not gameOver and not humanTurn:
-            start_time = time.perf_counter()
-            move = findBestMove(gs, validMoves)
-            if move is None:  # If no best move found, use random move
-                move = findRandomMove(validMoves)
-            if move is not None:  # Check if AI found a valid move
-                animate_move(screen, gs.board, images, move, gs, clock)
-                gs.makeMove(move)
-                moveMade = True
+            if not ai_thinking:
+                ai_thinking = True
+                start_time = time.perf_counter()
+                gs_copy = copy.deepcopy(gs)
+                valid_moves_copy = list(validMoves)
+                ai_future = executor.submit(findBestMove, gs_copy, valid_moves_copy)
+                p.display.set_caption("Chess - AI is thinking...")
+            elif ai_future.done():
+                move = ai_future.result()
+                if move is None:  # If no best move found, use random move
+                    move = findRandomMove(validMoves)
+                if move is not None:  # Check if AI found a valid move
+                    animate_move(screen, gs.board, images, move, gs, clock)
+                    gs.makeMove(move)
+                    moveMade = True
 
-            end_time = time.perf_counter()
-            ai_move_times.append(end_time - start_time)
-            if len(ai_move_times) % 10 == 0:
-                avg_time = sum(ai_move_times) / len(ai_move_times)
-                print(f"Average AI move time: {avg_time:.3f} seconds")
+                end_time = time.perf_counter()
+                ai_move_times.append(end_time - start_time)
+                if len(ai_move_times) % 10 == 0:
+                    avg_time = sum(ai_move_times) / len(ai_move_times)
+                    print(f"Average AI move time: {avg_time:.3f} seconds")
+
+                ai_thinking = False
+                p.display.set_caption("Chess")
 
         if moveMade:
             validMoves = gs.getValidMoves()
