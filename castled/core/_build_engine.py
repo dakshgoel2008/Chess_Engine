@@ -41,6 +41,7 @@ ffibuilder.cdef("""
 
     uint64_t board_perft(Board* board, int depth);
     void perft_divide(Board* board, int depth);
+    int board_evaluate(const Board* board);
 
     uint64_t rook_attacks(int sq, uint64_t occupied);
     uint64_t bishop_attacks(int sq, uint64_t occupied);
@@ -58,6 +59,7 @@ ffibuilder.set_source(
         os.path.join(_SRC_DIR, "zobrist.c"),
         os.path.join(_SRC_DIR, "board.c"),
         os.path.join(_SRC_DIR, "movegen.c"),
+        os.path.join(_SRC_DIR, "eval.c"),
         os.path.join(_SRC_DIR, "engine.c"),
     ],
     include_dirs=[_SRC_DIR],

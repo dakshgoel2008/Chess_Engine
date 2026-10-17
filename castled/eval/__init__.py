@@ -1,2 +1,1 @@
-# evaluation (classical hand-crafted + NNUE neural network)
-
+from .classical import evaluate, evaluate_python

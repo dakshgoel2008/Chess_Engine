@@ -4,4 +4,6 @@ from .core.types import Color, PieceType, Piece, Square, MoveFlag, CastlingRight
 from .core.move import Move
 from .core.board import Board, Outcome
 from .core.pgn import PGNGame, parse_pgn, dump_pgn
+from .eval.classical import evaluate
+
 

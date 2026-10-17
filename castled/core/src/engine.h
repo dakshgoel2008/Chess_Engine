@@ -7,6 +7,7 @@
 #include "zobrist.h"
 #include "board.h"
 #include "movegen.h"
+#include "eval.h"
 
 void init_engine(void);
 uint64_t board_perft(Board* board, int depth);
