@@ -10,6 +10,9 @@ dist/
 build/
 *.so
 *.dylib
+*.o
+castled/core/_engine.c
+castled/core/src/test_perft
 
 # NNUE weights
 *.nnue

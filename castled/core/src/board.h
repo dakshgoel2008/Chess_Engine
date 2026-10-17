@@ -41,6 +41,10 @@ void board_unmake_move(Board* board);
 
 int board_piece_at(const Board* board, int sq);
 int board_turn(const Board* board);
+int board_castling(const Board* board);
+int board_ep_square(const Board* board);
+int board_halfmove_clock(const Board* board);
+int board_fullmove_number(const Board* board);
 uint64_t board_hash(const Board* board);
 bool board_is_check(const Board* board);
 bool board_is_attacked_by(const Board* board, int sq, int color);

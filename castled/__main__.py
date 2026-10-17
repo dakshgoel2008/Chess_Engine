@@ -1,7 +1,5 @@
-def main():
-    print("CastledEngine v0.1.0")
-    print("UCI mode not implemented yet — coming in Phase 6")
-
+from .cli import main
 
 if __name__ == "__main__":
     main()
+

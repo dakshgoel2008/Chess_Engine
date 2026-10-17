@@ -7,10 +7,11 @@
 #include <ctype.h>
 #include <stdio.h>
 
+#define STARTING_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
 Board* board_new(void) {
     Board* b = (Board*)calloc(1, sizeof(Board));
-    for (int i = 0; i < 64; i++) b->mailbox[i] = PIECE_NONE;
-    b->ep_square = SQ_NONE;
+    board_from_fen(b, STARTING_FEN);
     return b;
 }
 
@@ -30,6 +31,22 @@ int board_piece_at(const Board* board, int sq) {
 
 int board_turn(const Board* board) {
     return board->turn;
+}
+
+int board_castling(const Board* board) {
+    return board->castling;
+}
+
+int board_ep_square(const Board* board) {
+    return board->ep_square;
+}
+
+int board_halfmove_clock(const Board* board) {
+    return board->halfmove_clock;
+}
+
+int board_fullmove_number(const Board* board) {
+    return board->fullmove_number;
 }
 
 uint64_t board_hash(const Board* board) {
@@ -97,9 +114,46 @@ void board_from_fen(Board* board, const char* fen) {
     board->hash_history_count = 0;
 }
 
+// Serialize current board state into a standard FEN string
 void board_to_fen(const Board* board, char* buf, int bufsize) {
-    // Minimal stub for now to compile
-    if (bufsize > 0) buf[0] = '\0';
+    static const char* symbols = "PNBRQKpnbrqk";
+    int pos = 0;
+
+    for (int r = 7; r >= 0; r--) {
+        int empty = 0;
+        for (int f = 0; f < 8; f++) {
+            int pc = board->mailbox[r * 8 + f];
+            if (pc == PIECE_NONE) {
+                empty++;
+            } else {
+                if (empty > 0 && pos < bufsize - 1) buf[pos++] = '0' + empty;
+                empty = 0;
+                if (pos < bufsize - 1) buf[pos++] = symbols[pc];
+            }
+        }
+        if (empty > 0 && pos < bufsize - 1) buf[pos++] = '0' + empty;
+        if (r > 0 && pos < bufsize - 1) buf[pos++] = '/';
+    }
+
+    char castling[5];
+    int cpos = 0;
+    if (board->castling & WK) castling[cpos++] = 'K';
+    if (board->castling & WQ) castling[cpos++] = 'Q';
+    if (board->castling & BK) castling[cpos++] = 'k';
+    if (board->castling & BQ) castling[cpos++] = 'q';
+    if (cpos == 0) castling[cpos++] = '-';
+    castling[cpos] = '\0';
+
+    char ep[3] = "-";
+    if (board->ep_square != SQ_NONE) {
+        ep[0] = 'a' + (board->ep_square % 8);
+        ep[1] = '1' + (board->ep_square / 8);
+        ep[2] = '\0';
+    }
+
+    snprintf(buf + pos, bufsize - pos, " %c %s %s %d %d",
+             (board->turn == WHITE) ? 'w' : 'b',
+             castling, ep, board->halfmove_clock, board->fullmove_number);
 }
 
 static inline void put_piece(Board* board, int pc, int sq) {

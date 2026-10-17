@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=61.0", "cffi>=1.15"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,13 +9,15 @@ description = "A production-grade chess engine with NNUE evaluation"
 authors = [{ name = "Daksh" }]
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
 
 dependencies = [
     "numpy>=1.24",
+    "cffi>=1.15",
 ]
 
 [project.optional-dependencies]
+dev = ["pytest>=7.0"]
 training = ["torch>=2.0", "matplotlib"]
 gui = ["pygame>=2.5"]
 
@@ -27,3 +29,4 @@ include = ["castled*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
