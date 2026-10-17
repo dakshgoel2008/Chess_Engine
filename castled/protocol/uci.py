@@ -113,9 +113,16 @@ class UCIEngine:
             value = " ".join(tokens[val_idx + 1:])
 
         prev_hash = self.options.hash_size_mb
+        prev_eval_file = self.options.eval_file
         self.options.set_option(name, value)
         if self.options.hash_size_mb != prev_hash:
             self.searcher.tt.resize(self.options.hash_size_mb)
+        self.searcher.use_nnue = self.options.use_nnue
+        if self.options.eval_file != prev_eval_file:
+            try:
+                self.searcher.load_nnue(self.options.eval_file)
+            except ValueError:
+                pass
 
     def _handle_position(self, tokens: List[str]):
         if not tokens:

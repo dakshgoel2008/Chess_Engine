@@ -45,6 +45,17 @@ ffibuilder.cdef("""
     void perft_divide(Board* board, int depth);
     int board_evaluate(const Board* board);
 
+    void nnue_init(void);
+    bool nnue_load_file(const char* path);
+    bool nnue_save_file(const char* path);
+    bool nnue_is_loaded(void);
+    void nnue_set_weights(const int16_t* w1, const int16_t* b1, const int16_t* w2, int16_t b2);
+    void nnue_get_weights(int16_t* w1, int16_t* b1, int16_t* w2, int16_t* b2);
+    void nnue_get_accumulator(const Board* board, int16_t* acc_white, int16_t* acc_black);
+    void nnue_refresh_accumulator(Board* board);
+    int nnue_evaluate(Board* board);
+    int nnue_evaluate_recompute(const Board* board);
+
     void tt_init(int size_mb);
     void tt_free(void);
     void tt_clear(void);
@@ -57,6 +68,7 @@ ffibuilder.cdef("""
         uint64_t max_nodes;
         int movetime_ms;
         int soft_movetime_ms;
+        int use_nnue;
         volatile int* stop_flag;
     } SearchLimits;
 
@@ -90,6 +102,12 @@ ffibuilder.cdef("""
 
 _SRC_DIR = os.path.join("castled", "core", "src")
 
+import platform
+
+_COMPILE_ARGS = ["-O3", "-std=c99"]
+if platform.machine().lower() in ("x86_64", "amd64"):
+    _COMPILE_ARGS.append("-march=native")
+
 ffibuilder.set_source(
     "castled.core._engine",
     '#include "engine.h"',
@@ -100,12 +118,13 @@ ffibuilder.set_source(
         os.path.join(_SRC_DIR, "board.c"),
         os.path.join(_SRC_DIR, "movegen.c"),
         os.path.join(_SRC_DIR, "eval.c"),
+        os.path.join(_SRC_DIR, "nnue.c"),
         os.path.join(_SRC_DIR, "tt.c"),
         os.path.join(_SRC_DIR, "search.c"),
         os.path.join(_SRC_DIR, "engine.c"),
     ],
     include_dirs=[_SRC_DIR],
-    extra_compile_args=["-O2", "-std=c99"],
+    extra_compile_args=_COMPILE_ARGS,
 )
 
 if __name__ == "__main__":

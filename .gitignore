@@ -20,6 +20,7 @@ castled/core/src/test_perft
 
 # NNUE weights
 *.nnue
+!castled/eval/weights/default.nnue
 *.pt
 
 # Editor

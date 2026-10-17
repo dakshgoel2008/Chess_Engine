@@ -8,6 +8,7 @@
 #include "board.h"
 #include "movegen.h"
 #include "eval.h"
+#include "nnue.h"
 #include "tt.h"
 #include "search.h"
 

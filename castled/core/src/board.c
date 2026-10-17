@@ -2,6 +2,7 @@
 #include "zobrist.h"
 #include "bitboard.h"
 #include "magics.h"
+#include "nnue.h"
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -57,6 +58,8 @@ void board_from_fen(Board* board, const char* fen) {
     memset(board->pieces, 0, sizeof(board->pieces));
     memset(board->occupied, 0, sizeof(board->occupied));
     for(int i=0; i<64; i++) board->mailbox[i] = PIECE_NONE;
+    board->nnue_acc_valid = false;
+    board->nnue_epoch = 0;
     
     int sq = A8;
     while (*fen && *fen != ' ') {
@@ -163,6 +166,9 @@ static inline void put_piece(Board* board, int pc, int sq) {
     board->occupied[pc < 6 ? WHITE : BLACK] |= bb;
     board->occupied[2] |= bb;
     board->hash ^= PIECE_KEYS[pc][sq];
+    if (board->nnue_acc_valid) {
+        nnue_acc_add_piece(board->nnue_acc[WHITE], board->nnue_acc[BLACK], pc, sq);
+    }
 }
 
 static inline void remove_piece(Board* board, int sq) {
@@ -174,6 +180,9 @@ static inline void remove_piece(Board* board, int sq) {
     board->occupied[pc < 6 ? WHITE : BLACK] &= ~bb;
     board->occupied[2] &= ~bb;
     board->hash ^= PIECE_KEYS[pc][sq];
+    if (board->nnue_acc_valid) {
+        nnue_acc_sub_piece(board->nnue_acc[WHITE], board->nnue_acc[BLACK], pc, sq);
+    }
 }
 
 void board_make_move(Board* board, Move move) {

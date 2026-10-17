@@ -16,6 +16,7 @@ from ..core.board import Board, HAS_CFFI, _ffi, _lib
 from ..core.move import Move
 from ..core.types import Color, MoveFlag, Piece, PieceType
 from ..eval.classical import evaluate_python
+from ..eval.nnue_ref import evaluate_nnue_numpy, load_nnue_file, reset_default_weights
 from .time_manager import scale_soft_time
 from .transposition import (
     SCORE_INF,
@@ -37,6 +38,7 @@ class SearchLimits:
     nodes: int = 0
     movetime_ms: int = 0
     soft_movetime_ms: int = 0
+    use_nnue: Optional[bool] = None
 
 
 @dataclass
@@ -232,11 +234,32 @@ def _is_search_repetition_py(board: Board) -> bool:
 class Searcher:
     """Alpha-beta PVS search engine with transposition table, pruning, and move ordering."""
 
-    def __init__(self, hash_size_mb: int = 16, *, _use_c: Optional[bool] = None):
+    def __init__(
+        self,
+        hash_size_mb: int = 16,
+        use_nnue: bool = False,
+        eval_file: str = "",
+        *,
+        _use_c: Optional[bool] = None,
+    ):
         self.tt = TranspositionTable(size_mb=hash_size_mb, _use_c=_use_c)
         self._use_c = self.tt._use_c
+        self.use_nnue = use_nnue
+        self.eval_file = eval_file
+        if eval_file:
+            self.load_nnue(eval_file)
         self._stop_flag = _ffi.new("int*", 0) if HAS_CFFI else None
         self._py_stop = False
+
+    # Load a `.nnue` weight file into the active C and NumPy NNUE evaluator.
+    def load_nnue(self, path: str) -> bool:
+        if not path:
+            reset_default_weights()
+            self.eval_file = ""
+            return True
+        load_nnue_file(path, activate=True)
+        self.eval_file = path
+        return True
 
     def stop(self):
         self._py_stop = True
@@ -254,6 +277,7 @@ class Searcher:
         movetime_ms: Optional[int] = None,
         soft_movetime_ms: Optional[int] = None,
         nodes: Optional[int] = None,
+        use_nnue: Optional[bool] = None,
         limits: Optional[SearchLimits] = None,
         on_info: Optional[Callable[[SearchInfo], None]] = None,
     ) -> SearchInfo:
@@ -262,11 +286,17 @@ class Searcher:
             max_nodes = limits.nodes
             max_time = limits.movetime_ms
             soft_time = limits.soft_movetime_ms
+            active_nnue = (
+                use_nnue
+                if use_nnue is not None
+                else (limits.use_nnue if limits.use_nnue is not None else self.use_nnue)
+            )
         else:
             max_depth = depth if depth is not None else 64
             max_nodes = nodes if nodes is not None else 0
             max_time = movetime_ms if movetime_ms is not None else 0
             soft_time = soft_movetime_ms if soft_movetime_ms is not None else 0
+            active_nnue = use_nnue if use_nnue is not None else self.use_nnue
 
         if max_depth <= 0 or max_depth >= MAX_PLY:
             max_depth = MAX_PLY - 1
@@ -276,8 +306,8 @@ class Searcher:
             self._stop_flag[0] = 0
 
         if self._use_c and board._use_c:
-            return self._search_c(board, max_depth, max_nodes, max_time, soft_time, on_info)
-        return self._search_python(board, max_depth, max_nodes, max_time, soft_time, on_info)
+            return self._search_c(board, max_depth, max_nodes, max_time, soft_time, active_nnue, on_info)
+        return self._search_python(board, max_depth, max_nodes, max_time, soft_time, active_nnue, on_info)
 
     def _search_c(
         self,
@@ -286,6 +316,7 @@ class Searcher:
         max_nodes: int,
         movetime_ms: int,
         soft_movetime_ms: int,
+        use_nnue: bool,
         on_info: Optional[Callable[[SearchInfo], None]],
     ) -> SearchInfo:
         c_limits = _ffi.new("SearchLimits*")
@@ -293,6 +324,7 @@ class Searcher:
         c_limits.max_nodes = max(0, max_nodes)
         c_limits.movetime_ms = max(0, movetime_ms)
         c_limits.soft_movetime_ms = max(0, soft_movetime_ms)
+        c_limits.use_nnue = 1 if use_nnue else 0
         c_limits.stop_flag = self._stop_flag
 
         c_result = _ffi.new("SearchResult*")
@@ -345,12 +377,15 @@ class Searcher:
         max_nodes: int,
         movetime_ms: int,
         soft_movetime_ms: int,
+        use_nnue: bool,
         on_info: Optional[Callable[[SearchInfo], None]],
     ) -> SearchInfo:
         root_moves = board.legal_moves
         if not root_moves:
             score = -SCORE_MATE if board.is_check() else 0
             return SearchInfo(depth=0, score=score, nodes=0, nps=0, time_ms=0, pv=[], best_move=Move.NULL)
+
+        eval_fn = evaluate_nnue_numpy if use_nnue else evaluate_python
 
         start_ms = time.monotonic() * 1000.0
         nodes_count = 0
@@ -386,14 +421,14 @@ class Searcher:
             nodes_count += 1
 
             if ply >= MAX_PLY:
-                return evaluate_python(board)
+                return eval_fn(board)
 
             in_check = board.is_check()
             if in_check:
                 if not board.legal_moves:
                     return -SCORE_MATE + ply
 
-            stand_pat = evaluate_python(board)
+            stand_pat = eval_fn(board)
             if stand_pat >= beta:
                 return beta
             if stand_pat > alpha:
@@ -449,7 +484,7 @@ class Searcher:
             if hit and not is_pv and ply > 0:
                 return tt_score
 
-            static_eval = -SCORE_INF if in_check else evaluate_python(board)
+            static_eval = -SCORE_INF if in_check else eval_fn(board)
 
             # Reverse Futility Pruning (RFP)
             if (

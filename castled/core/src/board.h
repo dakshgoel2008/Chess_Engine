@@ -28,6 +28,10 @@ struct Board {
     
     uint64_t hash_history[2048];
     int hash_history_count;
+
+    int16_t nnue_acc[2][256];
+    bool nnue_acc_valid;
+    uint32_t nnue_epoch;
 };
 
 Board* board_new(void);

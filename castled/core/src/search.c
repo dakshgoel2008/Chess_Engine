@@ -1,6 +1,7 @@
 #include "search.h"
 #include "movegen.h"
 #include "eval.h"
+#include "nnue.h"
 #include "bitboard.h"
 #include <stddef.h>
 #include <string.h>
@@ -30,6 +31,10 @@ typedef struct {
     Move killers[MAX_SEARCH_PLY][2];
     int history[2][64][64];
 } SearchState;
+
+static inline int evaluate_pos(Board* board, const SearchState* st) {
+    return st->limits.use_nnue ? nnue_evaluate(board) : board_evaluate(board);
+}
 
 static const int MVV_LVA_VALS[7] = { 100, 300, 320, 500, 900, 10000, 0 };
 static const int SEE_VALS[7] = { 100, 320, 330, 500, 900, 20000, 0 };
@@ -240,7 +245,7 @@ static int quiescence(Board* board, int alpha, int beta, int ply, SearchState* s
     st->nodes++;
 
     if (ply >= MAX_SEARCH_PLY) {
-        return board_evaluate(board);
+        return evaluate_pos(board, st);
     }
 
     bool in_check = board_is_check(board);
@@ -251,7 +256,7 @@ static int quiescence(Board* board, int alpha, int beta, int ply, SearchState* s
         }
     }
 
-    int stand_pat = board_evaluate(board);
+    int stand_pat = evaluate_pos(board, st);
     if (stand_pat >= beta) {
         return beta;
     }
@@ -322,7 +327,7 @@ static int negamax(Board* board, int depth, int alpha, int beta, int ply, Search
         }
     }
 
-    int static_eval = in_check ? -SCORE_INF : board_evaluate(board);
+    int static_eval = in_check ? -SCORE_INF : evaluate_pos(board, st);
 
     // Reverse Futility Pruning (Static Null Move Pruning)
     if (!is_pv && !in_check && depth <= 5 &&
@@ -487,6 +492,9 @@ void search_best_move(
     }
     if (st.limits.max_depth <= 0 || st.limits.max_depth >= MAX_SEARCH_PLY) {
         st.limits.max_depth = MAX_SEARCH_PLY - 1;
+    }
+    if (st.limits.use_nnue) {
+        nnue_refresh_accumulator(board);
     }
 
     st.start_ms = now_ms();

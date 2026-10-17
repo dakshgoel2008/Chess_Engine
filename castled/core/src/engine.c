@@ -6,6 +6,7 @@ void init_engine(void) {
     init_bitboard_tables();
     init_zobrist();
     init_magics();
+    nnue_init();
     tt_init(16);
 }
 

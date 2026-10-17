@@ -159,6 +159,8 @@ int board_generate_legal_moves(Board* board, Move* moves) {
     int pcount = board_generate_pseudo_legal_moves(board, pseudo);
     int lcount = 0;
     int us = board->turn;
+    bool saved_nnue = board->nnue_acc_valid;
+    board->nnue_acc_valid = false;
     
     for (int i = 0; i < pcount; i++) {
         board_make_move(board, pseudo[i]);
@@ -171,6 +173,7 @@ int board_generate_legal_moves(Board* board, Move* moves) {
         }
         board_unmake_move(board);
     }
+    board->nnue_acc_valid = saved_nnue;
     return lcount;
 }
 
@@ -263,6 +266,8 @@ int board_generate_captures(Board* board, Move* moves) {
 
     int ccount = 0;
     int king_pc = (us == WHITE) ? WHITE_KING : BLACK_KING;
+    bool saved_nnue = board->nnue_acc_valid;
+    board->nnue_acc_valid = false;
     for (int i = 0; i < pcount; i++) {
         board_make_move(board, pseudo[i]);
         if (board->pieces[king_pc]) {
@@ -273,6 +278,7 @@ int board_generate_captures(Board* board, Move* moves) {
         }
         board_unmake_move(board);
     }
+    board->nnue_acc_valid = saved_nnue;
     return ccount;
 }
 

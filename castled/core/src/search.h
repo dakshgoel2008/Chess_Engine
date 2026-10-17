@@ -12,6 +12,7 @@ typedef struct {
     uint64_t max_nodes;
     int movetime_ms;
     int soft_movetime_ms;
+    int use_nnue;
     volatile int* stop_flag;
 } SearchLimits;
 
