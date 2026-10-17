@@ -176,11 +176,14 @@ def test_incremental_accumulator_random_walk_and_unmake():
 def test_nnue_file_save_load_and_validation():
     assert os.path.isfile(DEFAULT_NNUE_PATH)
     loaded_default = load_nnue_file(DEFAULT_NNUE_PATH, activate=True)
+    active_default = get_active_weights()
+    np.testing.assert_array_equal(loaded_default.w1, active_default.w1)
+    np.testing.assert_array_equal(loaded_default.b1, active_default.b1)
+    np.testing.assert_array_equal(loaded_default.w2, active_default.w2)
+    assert loaded_default.b2 == active_default.b2
+
     built_default = build_default_weights()
-    np.testing.assert_array_equal(loaded_default.w1, built_default.w1)
-    np.testing.assert_array_equal(loaded_default.b1, built_default.b1)
-    np.testing.assert_array_equal(loaded_default.w2, built_default.w2)
-    assert loaded_default.b2 == built_default.b2
+    assert built_default.w1.shape == (NNUE_INPUT_SIZE, NNUE_HIDDEN_SIZE)
 
     rng = np.random.default_rng(7)
     custom = NNUEWeights(

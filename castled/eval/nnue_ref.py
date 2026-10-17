@@ -262,8 +262,10 @@ def load_nnue_file(path: str, activate: bool = True) -> NNUEWeights:
     return weights
 
 
-# Reset NNUE weights to the built-in deterministic default in both Python and C.
+# Reset NNUE weights to `default.nnue` (or heuristic fallback) in both Python and C.
 def reset_default_weights() -> NNUEWeights:
+    if os.path.isfile(DEFAULT_NNUE_PATH):
+        return load_nnue_file(DEFAULT_NNUE_PATH, activate=True)
     w = build_default_weights()
     set_active_weights(w)
     return w
@@ -276,4 +278,7 @@ def evaluate_nnue(board: Board, recompute: bool = False) -> int:
             return int(_lib.nnue_evaluate_recompute(board._c_board))
         return int(_lib.nnue_evaluate(board._c_board))
     return evaluate_nnue_numpy(board)
+
+
+reset_default_weights()
 

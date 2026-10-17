@@ -1,0 +1,11 @@
+# CastledEngine NNUE Training Configuration (768 -> 256x2 -> 1 SCReLU)
+epochs: 12
+batch_size: 128
+lr: 0.0025
+min_lr: 0.0001
+wdl_lambda: 0.75
+eval_scale: 400.0
+weight_decay: 0.00001
+seed: 42
+warm_start: true
+
