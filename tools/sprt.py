@@ -148,8 +148,8 @@ def build_cutechess_command(
 ) -> List[str]:
     return [
         cutechess_bin,
-        "-engine", f"name=New", f"cmd={new_cmd}", "proto=uci",
-        "-engine", f"name=Base", f"cmd={base_cmd}", "proto=uci",
+        "-engine", "name=New", f"cmd={new_cmd}", "proto=uci",
+        "-engine", "name=Base", f"cmd={base_cmd}", "proto=uci",
         "-each", f"tc={tc}",
         "-rounds", str(max(1, games // 2)),
         "-games", "2",

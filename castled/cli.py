@@ -47,7 +47,7 @@ def run_bench(depth: int = 6):
 
     elapsed = max(time.perf_counter() - start, 1e-6)
     nps = int(total_nodes / elapsed)
-    print(f"\n=========================== ")
+    print("\n===========================")
     print(f"Total time (ms) : {int(elapsed * 1000)}")
     print(f"Nodes searched  : {total_nodes}")
     print(f"Nodes/second    : {nps}")
@@ -80,12 +80,13 @@ def main():
         return
 
     cmd = args[0]
+    rest = [a for a in args[1:] if a != "--depth"]
     if cmd == "perft":
-        depth = int(args[1]) if len(args) >= 2 else 5
-        fen = " ".join(args[2:]) if len(args) >= 3 else STARTING_FEN
+        depth = int(rest[0]) if len(rest) >= 1 else 5
+        fen = " ".join(rest[1:]) if len(rest) >= 2 else STARTING_FEN
         run_perft(depth, fen)
     elif cmd == "bench":
-        depth = int(args[1]) if len(args) >= 2 else 6
+        depth = int(rest[0]) if len(rest) >= 1 else 6
         run_bench(depth)
     elif cmd == "play":
         run_play(args[1:])

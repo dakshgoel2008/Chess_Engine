@@ -1,4 +1,6 @@
 import os
+import platform
+import sys
 from cffi import FFI
 
 ffibuilder = FFI()
@@ -102,11 +104,12 @@ ffibuilder.cdef("""
 
 _SRC_DIR = os.path.join("castled", "core", "src")
 
-import platform
-
-_COMPILE_ARGS = ["-O3", "-std=c99"]
-if platform.machine().lower() in ("x86_64", "amd64"):
-    _COMPILE_ARGS.append("-march=native")
+if sys.platform == "win32":
+    _COMPILE_ARGS = ["/O2"]
+else:
+    _COMPILE_ARGS = ["-O3", "-std=c99"]
+    if platform.machine().lower() in ("x86_64", "amd64"):
+        _COMPILE_ARGS.append("-march=native")
 
 ffibuilder.set_source(
     "castled.core._engine",

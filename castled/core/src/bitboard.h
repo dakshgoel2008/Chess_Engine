@@ -3,6 +3,9 @@
 
 #include "types.h"
 #include <stdint.h>
+#if defined(_MSC_VER)
+#include <intrin.h>
+#endif
 
 #define FILE_A 0x0101010101010101ULL
 #define FILE_B 0x0202020202020202ULL

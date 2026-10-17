@@ -9,7 +9,8 @@ def test_fen_roundtrip():
     fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     b = Board(fen)
     assert b.fen == fen
-    
+
+
 def test_make_unmake():
     b = Board()
     fen_before = b.fen
