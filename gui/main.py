@@ -3,6 +3,7 @@
 import asyncio
 import concurrent.futures
 import os
+import sys
 from typing import Any, Dict, List, Optional, Tuple
 
 try:
@@ -14,6 +15,7 @@ from castled.core.board import Board
 from castled.core.move import Move
 from castled.core.types import Color, PieceType, STARTING_FEN
 from castled.eval.classical import evaluate
+from castled.eval.nnue_ref import evaluate_nnue
 from castled.search.search import SearchInfo, Searcher
 from gui.config import (
     BOARD_SIZE,
@@ -66,12 +68,27 @@ class GameSession:
         difficulty: str = "Medium",
         start_fen: str = STARTING_FEN,
         hash_mb: int = 32,
+        use_nnue: bool = True,
     ) -> None:
-        self.searcher = Searcher(hash_size_mb=hash_mb)
+        self.use_nnue = use_nnue
+        self.searcher = Searcher(hash_size_mb=hash_mb, use_nnue=use_nnue)
         self.mode = mode if mode in MODE_LABELS else "white"
         self.difficulty = difficulty if difficulty in DIFFICULTY_LEVELS else "Medium"
         self.flipped = (self.mode == "black")
         self.reset(start_fen=start_fen)
+
+    def _static_eval(self) -> int:
+        return evaluate_nnue(self.board) if self.use_nnue else evaluate(self.board)
+
+    def toggle_nnue(self) -> bool:
+        """Toggle between NNUE evaluation and Classical evaluation."""
+        self.use_nnue = not self.use_nnue
+        self.searcher.use_nnue = self.use_nnue
+        self.searcher.clear()
+        self.white_score_cp = to_white_perspective_cp(self._static_eval(), self.board.turn)
+        label = "NNUE" if self.use_nnue else "Classical"
+        self.status_text = f"Switched evaluator to {label}"
+        return self.use_nnue
 
     def reset(self, start_fen: str = STARTING_FEN) -> None:
         """Reset the game to the starting or specified FEN position."""
@@ -85,7 +102,7 @@ class GameSession:
         self.pending_promotions: List[Move] = []
         self.review_items: List[MoveReviewItem] = []
 
-        static_cp = evaluate(self.board)
+        static_cp = self._static_eval()
         self.white_score_cp = to_white_perspective_cp(static_cp, self.board.turn)
         self.search_depth = 0
         self.search_nodes = 0
@@ -184,7 +201,7 @@ class GameSession:
             self.search_nps = search_result.nps
             self.pv_text = " ".join(m.to_uci() for m in search_result.pv[:5]) or uci_str
         else:
-            static_cp = evaluate(self.board)
+            static_cp = self._static_eval()
             self.white_score_cp = to_white_perspective_cp(static_cp, self.board.turn)
 
         if self.board.is_checkmate():
@@ -217,7 +234,7 @@ class GameSession:
         self.selected_sq = None
         self.pending_promotions = []
         self.review_items = []
-        static_cp = evaluate(self.board)
+        static_cp = self._static_eval()
         self.white_score_cp = to_white_perspective_cp(static_cp, self.board.turn)
         side = "White" if self.board.turn == Color.WHITE else "Black"
         self.status_text = f"Undid move - {side} to move"
@@ -229,7 +246,12 @@ class GameSession:
         max_depth = int(preset["depth"])
         movetime_ms = int(preset["movetime_ms"])
         board_copy = self.board.copy()
-        res = self.searcher.search(board_copy, depth=max_depth, movetime_ms=movetime_ms)
+        res = self.searcher.search(
+            board_copy,
+            depth=max_depth,
+            movetime_ms=movetime_ms,
+            use_nnue=self.use_nnue,
+        )
         best = res.best_move if int(res.best_move) != 0 else None
         return best, res
 
@@ -282,6 +304,7 @@ class GameSession:
         return {
             "mode_label": MODE_LABELS.get(self.mode, "Player vs AI"),
             "difficulty": self.difficulty,
+            "use_nnue": self.use_nnue,
             "status_text": self.status_text,
             "search_depth": self.search_depth,
             "search_nodes": self.search_nodes,
@@ -313,8 +336,9 @@ async def main(
 
     in_menu = (initial_mode is None and pgn_path is None)
     running = True
+    is_wasm = (sys.platform == "emscripten")
 
-    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    executor = None if is_wasm else concurrent.futures.ThreadPoolExecutor(max_workers=1)
     ai_future: Optional[concurrent.futures.Future] = None
     review_future: Optional[concurrent.futures.Future] = None
     sidebar_buttons: Dict[str, Any] = {}
@@ -389,7 +413,10 @@ async def main(
                     elif clicked_button == "review":
                         if (ai_future is None or ai_future.done()) and (review_future is None or review_future.done()):
                             session.status_text = "Analyzing game moves..."
-                            review_future = executor.submit(session.run_review, 2)
+                            if executor is not None:
+                                review_future = executor.submit(session.run_review, 2)
+                            else:
+                                session.run_review(2)
                         continue
                     elif clicked_button == "save_pgn":
                         session.save_pgn_file(pgn_path or "castled_game.pgn")
@@ -428,10 +455,15 @@ async def main(
                         in_menu = True
                     elif e.key == p.K_f:
                         session.flipped = not session.flipped
+                    elif e.key == p.K_e and (ai_future is None or ai_future.done()):
+                        session.toggle_nnue()
                     elif e.key == p.K_g and (ai_future is None or ai_future.done()):
                         if review_future is None or review_future.done():
                             session.status_text = "Analyzing game moves..."
-                            review_future = executor.submit(session.run_review, 2)
+                            if executor is not None:
+                                review_future = executor.submit(session.run_review, 2)
+                            else:
+                                session.run_review(2)
                     elif e.key == p.K_s:
                         session.save_pgn_file(pgn_path or "castled_game.pgn")
                     elif e.key == p.K_l and (ai_future is None or ai_future.done()):
@@ -441,9 +473,16 @@ async def main(
             if review_future is not None and review_future.done():
                 review_future = None
 
-            # Non-blocking AI move execution
+            # Non-blocking AI move execution (or cooperative single-frame execution on WASM)
             if not session.board.is_game_over() and not session.is_human_turn():
-                if ai_future is None:
+                if executor is None:
+                    session.status_text = f"CastledEngine ({session.difficulty}) thinking..."
+                    p.display.flip()
+                    await asyncio.sleep(0)
+                    best_move, search_res = session.compute_ai_move()
+                    if best_move is not None:
+                        session.apply_move(best_move, search_result=search_res)
+                elif ai_future is None:
                     session.status_text = f"CastledEngine ({session.difficulty}) thinking..."
                     p.display.set_caption("CastledEngine - AI is thinking...")
                     ai_future = executor.submit(session.compute_ai_move)

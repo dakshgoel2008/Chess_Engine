@@ -1,4 +1,4 @@
-# Chess Engine (`castled`)
+# CastledEngine (`castled`)
 
 [![CI](https://github.com/dakshgoel2008/castled_realms/actions/workflows/ci.yml/badge.svg)](https://github.com/dakshgoel2008/castled_realms/actions/workflows/ci.yml)
 [![Lichess BOT @CastledBot](https://img.shields.io/badge/Lichess_BOT-%40CastledBot-blue?logo=lichess)](https://lichess.org/@/CastledBot)

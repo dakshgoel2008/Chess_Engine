@@ -438,9 +438,10 @@ def draw_sidebar(screen: Any, state: Dict[str, Any]) -> Dict[str, Any]:
     nps = state.get("search_nps", 0)
     white_cp = state.get("white_score_cp", 0)
     pv_str = state.get("pv_text", "-")
+    eval_tag = "NNUE" if state.get("use_nnue", True) else "HCE"
 
-    line1 = f"Eval: {format_eval_label(white_cp)}  Depth: {depth}  NPS: {nps // 1000}k"
-    line2 = f"Nodes: {nodes:,}"
+    line1 = f"Eval ({eval_tag}): {format_eval_label(white_cp)}  D:{depth}  {nps // 1000}k/s"
+    line2 = f"Nodes: {nodes:,}  (Press E to toggle NNUE)"
     line3 = f"Best: {pv_str[:34]}"
 
     screen.blit(font_mono.render(line1, True, (220, 230, 245)), (x0 + 22, 80))

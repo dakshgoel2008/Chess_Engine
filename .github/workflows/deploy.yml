@@ -2,29 +2,27 @@ name: Build and Deploy Web Demo
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
+      - name: Prepare Web Arena bundle
         run: |
-          python -m pip install --upgrade pip
-          pip install pygame pygbag numpy
-
-      - name: Build with pygbag
-        run: pygbag --build gui/
+          mkdir -p dist_web/images
+          cp web/index.html dist_web/index.html
+          cp gui/images/*.png dist_web/images/
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./gui/build/web
+          publish_dir: ./dist_web

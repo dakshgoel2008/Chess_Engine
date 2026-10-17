@@ -189,3 +189,23 @@ def test_headless_pygame_rendering_and_cli_play_help(monkeypatch):
         p.quit()
 
 
+def test_nnue_toggle_and_web_demo_assets():
+    session = GameSession(mode="white", difficulty="Easy", hash_mb=8, use_nnue=True)
+    assert session.use_nnue is True
+    assert session.sidebar_state()["use_nnue"] is True
+
+    assert session.toggle_nnue() is False
+    assert session.use_nnue is False
+    assert session.sidebar_state()["use_nnue"] is False
+
+    assert session.toggle_nnue() is True
+    assert session.use_nnue is True
+
+    root = Path(__file__).resolve().parent.parent
+    web_html = root / "web" / "index.html"
+    main_py = root / "main.py"
+    assert web_html.exists()
+    assert "CastledEngine" in web_html.read_text(encoding="utf-8")
+    assert main_py.exists()
+
+
