@@ -53,6 +53,26 @@ def run_bench(depth: int = 6):
     print(f"Nodes/second    : {nps}")
 
 
+# Launch the interactive Pygame GUI with optional mode, difficulty, and PGN file.
+def run_play(argv: list[str]) -> None:
+    import argparse
+    import os
+
+    parser = argparse.ArgumentParser(prog="castled play", description="Launch the CastledEngine Pygame GUI.")
+    parser.add_argument("--mode", choices=["white", "black", "pvp", "aivai"], default=None)
+    parser.add_argument("--difficulty", choices=["Easy", "Medium", "Hard", "Master"], default="Medium")
+    parser.add_argument("--pgn", default=None, help="Optional PGN file to load or save.")
+    parsed = parser.parse_args(argv)
+
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
+
+    from gui.main import run_gui
+
+    run_gui(mode=parsed.mode, difficulty=parsed.difficulty, pgn_path=parsed.pgn)
+
+
 def main():
     args = sys.argv[1:]
     if not args or args[0] == "uci":
@@ -67,10 +87,13 @@ def main():
     elif cmd == "bench":
         depth = int(args[1]) if len(args) >= 2 else 6
         run_bench(depth)
+    elif cmd == "play":
+        run_play(args[1:])
     else:
-        print(f"Unknown command: {cmd}. Usage: castled [uci | perft <depth> [fen] | bench [depth]]")
+        print(f"Unknown command: {cmd}. Usage: castled [uci | play | perft <depth> [fen] | bench [depth]]")
         sys.exit(1)
 
 
 if __name__ == "__main__":
     main()
+
