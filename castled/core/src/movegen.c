@@ -174,16 +174,104 @@ int board_generate_legal_moves(Board* board, Move* moves) {
     return lcount;
 }
 
-// Generate all legal capture and promotion moves (used by quiescence search).
+// Generate all legal capture and promotion moves directly (used by quiescence search).
 int board_generate_captures(Board* board, Move* moves) {
-    Move legal[MAX_MOVES];
-    int lcount = board_generate_legal_moves(board, legal);
-    int ccount = 0;
-    for (int i = 0; i < lcount; i++) {
-        int flags = MOVE_FLAGS(legal[i]);
-        if (flags == CAPTURE || flags == EP_CAPTURE || flags >= PROMO_N) {
-            moves[ccount++] = legal[i];
+    Move pseudo[MAX_MOVES];
+    int pcount = 0;
+    int us = board->turn;
+    int them = us ^ 1;
+    uint64_t their_pieces = board->occupied[them];
+    uint64_t all_pieces = board->occupied[2];
+    uint64_t empty = ~all_pieces;
+    int offset = (us == WHITE) ? 0 : 6;
+    int promo_r = (us == WHITE) ? 7 : 0;
+
+    uint64_t pawns = board->pieces[WHITE_PAWN + offset];
+    while (pawns) {
+        int sq = pop_lsb(&pawns);
+        int push_sq = (us == WHITE) ? sq + 8 : sq - 8;
+        if (( push_sq / 8 == promo_r ) && (empty & (1ULL << push_sq))) {
+            add_move(pseudo, &pcount, sq, push_sq, PROMO_Q);
+            add_move(pseudo, &pcount, sq, push_sq, PROMO_R);
+            add_move(pseudo, &pcount, sq, push_sq, PROMO_B);
+            add_move(pseudo, &pcount, sq, push_sq, PROMO_N);
         }
+
+        uint64_t att = PAWN_ATTACKS[us][sq] & their_pieces;
+        while (att) {
+            int cap_sq = pop_lsb(&att);
+            if (cap_sq / 8 == promo_r) {
+                add_move(pseudo, &pcount, sq, cap_sq, CAPTURE_PROMO_Q);
+                add_move(pseudo, &pcount, sq, cap_sq, CAPTURE_PROMO_R);
+                add_move(pseudo, &pcount, sq, cap_sq, CAPTURE_PROMO_B);
+                add_move(pseudo, &pcount, sq, cap_sq, CAPTURE_PROMO_N);
+            } else {
+                add_move(pseudo, &pcount, sq, cap_sq, CAPTURE);
+            }
+        }
+
+        if (board->ep_square != SQ_NONE) {
+            if (PAWN_ATTACKS[us][sq] & (1ULL << board->ep_square)) {
+                add_move(pseudo, &pcount, sq, board->ep_square, EP_CAPTURE);
+            }
+        }
+    }
+
+    uint64_t knights = board->pieces[WHITE_KNIGHT + offset];
+    while (knights) {
+        int sq = pop_lsb(&knights);
+        uint64_t att = KNIGHT_ATTACKS[sq] & their_pieces;
+        while (att) {
+            add_move(pseudo, &pcount, sq, pop_lsb(&att), CAPTURE);
+        }
+    }
+
+    uint64_t bishops = board->pieces[WHITE_BISHOP + offset];
+    while (bishops) {
+        int sq = pop_lsb(&bishops);
+        uint64_t att = bishop_attacks(sq, all_pieces) & their_pieces;
+        while (att) {
+            add_move(pseudo, &pcount, sq, pop_lsb(&att), CAPTURE);
+        }
+    }
+
+    uint64_t rooks = board->pieces[WHITE_ROOK + offset];
+    while (rooks) {
+        int sq = pop_lsb(&rooks);
+        uint64_t att = rook_attacks(sq, all_pieces) & their_pieces;
+        while (att) {
+            add_move(pseudo, &pcount, sq, pop_lsb(&att), CAPTURE);
+        }
+    }
+
+    uint64_t queens = board->pieces[WHITE_QUEEN + offset];
+    while (queens) {
+        int sq = pop_lsb(&queens);
+        uint64_t att = queen_attacks(sq, all_pieces) & their_pieces;
+        while (att) {
+            add_move(pseudo, &pcount, sq, pop_lsb(&att), CAPTURE);
+        }
+    }
+
+    if (board->pieces[WHITE_KING + offset]) {
+        int king_sq = lsb(board->pieces[WHITE_KING + offset]);
+        uint64_t att = KING_ATTACKS[king_sq] & their_pieces;
+        while (att) {
+            add_move(pseudo, &pcount, king_sq, pop_lsb(&att), CAPTURE);
+        }
+    }
+
+    int ccount = 0;
+    int king_pc = (us == WHITE) ? WHITE_KING : BLACK_KING;
+    for (int i = 0; i < pcount; i++) {
+        board_make_move(board, pseudo[i]);
+        if (board->pieces[king_pc]) {
+            int king_sq = lsb(board->pieces[king_pc]);
+            if (!board_is_attacked_by(board, king_sq, them)) {
+                moves[ccount++] = pseudo[i];
+            }
+        }
+        board_unmake_move(board);
     }
     return ccount;
 }

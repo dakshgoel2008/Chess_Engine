@@ -99,6 +99,9 @@ class Move:
     def __hash__(self):
         return hash(self._data)
 
+    def __int__(self) -> int:
+        return self._data
+
     def __repr__(self):
         return f"Move.from_uci('{self.to_uci()}')"
 

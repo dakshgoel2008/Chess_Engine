@@ -619,7 +619,21 @@ class Board:
             buf = _ffi.new("uint16_t[256]")
             count = _lib.board_generate_captures(self._c_board, buf)
             return [Move(buf[i]) for i in range(count)]
-        return [m for m in self.legal_moves if m.is_capture() or m.is_promotion()]
+
+        moves: List[Move] = []
+        us = self.turn
+        them = us.flip()
+        king_pc = Piece.WHITE_KING if us == Color.WHITE else Piece.BLACK_KING
+
+        for move in self.pseudo_legal_moves:
+            if not (move.is_capture() or move.is_promotion()):
+                continue
+            self.push(move)
+            kings = self.pieces[king_pc]
+            if kings and not self.is_attacked_by(them, lsb(kings)):
+                moves.append(move)
+            self.pop()
+        return moves
 
     # --- Terminal state and draw rules ---
 

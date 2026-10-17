@@ -8,6 +8,8 @@
 #include "board.h"
 #include "movegen.h"
 #include "eval.h"
+#include "tt.h"
+#include "search.h"
 
 void init_engine(void);
 uint64_t board_perft(Board* board, int depth);

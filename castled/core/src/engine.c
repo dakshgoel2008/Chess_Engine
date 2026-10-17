@@ -6,6 +6,7 @@ void init_engine(void) {
     init_bitboard_tables();
     init_zobrist();
     init_magics();
+    tt_init(16);
 }
 
 uint64_t board_perft(Board* board, int depth) {

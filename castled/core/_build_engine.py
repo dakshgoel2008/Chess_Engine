@@ -43,6 +43,41 @@ ffibuilder.cdef("""
     void perft_divide(Board* board, int depth);
     int board_evaluate(const Board* board);
 
+    void tt_init(int size_mb);
+    void tt_free(void);
+    void tt_clear(void);
+    void tt_store(uint64_t key, int depth, int score, int bound, uint16_t best_move, int ply);
+    bool tt_probe(uint64_t key, int depth, int alpha, int beta, int ply, uint16_t* best_move, int* score);
+    bool tt_probe_entry(uint64_t key, int ply, uint16_t* best_move, int* score, int* depth, int* bound);
+
+    typedef struct {
+        int max_depth;
+        uint64_t max_nodes;
+        int movetime_ms;
+        volatile int* stop_flag;
+    } SearchLimits;
+
+    typedef struct {
+        uint16_t best_move;
+        int score;
+        int depth;
+        uint64_t nodes;
+        int time_ms;
+        uint16_t pv[64];
+        int pv_length;
+    } SearchResult;
+
+    typedef void (*SearchInfoCallback)(
+        int depth, int score, uint64_t nodes, int time_ms, const uint16_t* pv, int pv_len
+    );
+
+    void search_best_move(
+        Board* board,
+        const SearchLimits* limits,
+        SearchInfoCallback callback,
+        SearchResult* result
+    );
+
     uint64_t rook_attacks(int sq, uint64_t occupied);
     uint64_t bishop_attacks(int sq, uint64_t occupied);
     uint64_t queen_attacks(int sq, uint64_t occupied);
@@ -60,6 +95,8 @@ ffibuilder.set_source(
         os.path.join(_SRC_DIR, "board.c"),
         os.path.join(_SRC_DIR, "movegen.c"),
         os.path.join(_SRC_DIR, "eval.c"),
+        os.path.join(_SRC_DIR, "tt.c"),
+        os.path.join(_SRC_DIR, "search.c"),
         os.path.join(_SRC_DIR, "engine.c"),
     ],
     include_dirs=[_SRC_DIR],
@@ -68,4 +105,5 @@ ffibuilder.set_source(
 
 if __name__ == "__main__":
     ffibuilder.compile(verbose=True)
+
 

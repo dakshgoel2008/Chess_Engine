@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -std=c99 -O2 -Wall -Wextra
-SRCS = bitboard.c magics.c zobrist.c board.c movegen.c eval.c engine.c
+SRCS = bitboard.c magics.c zobrist.c board.c movegen.c eval.c tt.c search.c engine.c
 
 .PHONY: perft clean
 
