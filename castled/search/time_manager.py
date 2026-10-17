@@ -1,4 +1,4 @@
-"""Time allocation for tournament clocks and fixed-movetime searches."""
+"""Time allocation for tournament clocks and dynamic soft-time extension."""
 
 from dataclasses import dataclass
 from typing import Optional
@@ -11,6 +11,26 @@ class TimeAllocation:
     soft_ms: int
     hard_ms: int
     instant: bool = False
+
+
+# Extend the soft time limit (clamped to hard_ms) when the best move fluctuates or score drops.
+def scale_soft_time(
+    soft_ms: int,
+    hard_ms: int,
+    best_move_changes: int = 0,
+    score_drop_cp: int = 0,
+) -> int:
+    if soft_ms <= 0:
+        return 0
+    effective = soft_ms
+    capped_changes = min(max(0, best_move_changes), 3)
+    if capped_changes > 0:
+        effective += (soft_ms * 35 * capped_changes) // 100
+    if score_drop_cp >= 30:
+        effective += (soft_ms * 35) // 100
+    if hard_ms > 0 and effective > hard_ms:
+        effective = hard_ms
+    return effective
 
 
 # Compute soft and hard time budgets (in ms) from UCI clock parameters.
@@ -51,4 +71,3 @@ def allocate_time(
         soft = hard
 
     return TimeAllocation(soft_ms=soft, hard_ms=hard, instant=False)
-

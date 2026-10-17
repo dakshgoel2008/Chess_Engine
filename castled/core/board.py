@@ -359,6 +359,65 @@ class Board:
         self._hash = prev_hash
         return move
 
+    def push_null(self):
+        """Pass the turn without moving a piece for null-move pruning."""
+        self._move_stack.append(Move.NULL)
+        self._hash_history.append(self.zobrist_hash)
+
+        if self._use_c:
+            _lib.board_make_null_move(self._c_board)
+            self._sync_scalars_from_c()
+            return
+
+        self._history.append((
+            Move.NULL, self.castling_rights, self.ep_square,
+            self.halfmove_clock, self._hash, 12,
+        ))
+        if self.ep_square != Square.NONE:
+            self._hash ^= EP_KEYS[self.ep_square % 8]
+            self.ep_square = Square.NONE
+        self.halfmove_clock += 1
+        self.turn = self.turn.flip()
+        self._hash ^= SIDE_KEY
+
+    def pop_null(self):
+        """Restore board state after a null move."""
+        if not self._move_stack:
+            return
+        self._move_stack.pop()
+        self._hash_history.pop()
+
+        if self._use_c:
+            _lib.board_unmake_null_move(self._c_board)
+            self._sync_scalars_from_c()
+            return
+
+        _, castling, ep, half, prev_hash, _ = self._history.pop()
+        self.turn = self.turn.flip()
+        self.castling_rights = castling
+        self.ep_square = ep
+        self.halfmove_clock = half
+        self._hash = prev_hash
+
+    def has_non_pawn_material(self, color: Optional[Color] = None) -> bool:
+        """Return True if the specified side has at least one knight, bishop, rook, or queen."""
+        c = int(self.turn if color is None else color)
+        base = c * 6
+        if self._use_c:
+            for sq in range(64):
+                pc = _lib.board_piece_at(self._c_board, sq)
+                if pc != 12 and (pc // 6) == c and (pc % 6) in (
+                    PieceType.KNIGHT, PieceType.BISHOP, PieceType.ROOK, PieceType.QUEEN
+                ):
+                    return True
+            return False
+        return (
+            self.pieces[base + PieceType.KNIGHT]
+            | self.pieces[base + PieceType.BISHOP]
+            | self.pieces[base + PieceType.ROOK]
+            | self.pieces[base + PieceType.QUEEN]
+        ) != 0
+
     # --- Attack and check detection ---
 
     def attackers_to(self, sq: int, color: Optional[Color] = None) -> int:

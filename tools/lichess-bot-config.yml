@@ -1,0 +1,42 @@
+# Configuration for running CastledEngine on Lichess (compatible with lichess-bot and tools/lichess_bot.py).
+
+token: "${LICHESS_TOKEN}"
+url: "https://lichess.org/"
+
+engine:
+  dir: "."
+  name: "castled"
+  protocol: "uci"
+  ponder: false
+  uci_options:
+    Hash: 128
+    Threads: 1
+    MoveOverhead: 30
+    UseNNUE: true
+  polyglot:
+    enabled: false
+    book:
+      standard:
+        - "castled/book/opening.bin"
+    max_depth: 16
+    selection: "weighted_random"
+
+challenge:
+  concurrency: 1
+  sort_by: "best"
+  accept_bot: true
+  only_bot: false
+  max_increment: 30
+  min_increment: 0
+  max_base: 900
+  min_base: 30
+  variants:
+    - "standard"
+  time_controls:
+    - "bullet"
+    - "blitz"
+    - "rapid"
+  modes:
+    - "casual"
+    - "rated"
+

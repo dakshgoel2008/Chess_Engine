@@ -206,7 +206,12 @@ class UCIEngine:
 
         max_depth = depth if depth is not None else 63
         max_nodes = nodes if nodes is not None else 0
-        limits = SearchLimits(depth=max_depth, nodes=max_nodes, movetime_ms=hard_ms)
+        limits = SearchLimits(
+            depth=max_depth,
+            nodes=max_nodes,
+            movetime_ms=hard_ms,
+            soft_movetime_ms=soft_ms,
+        )
         board_copy = self.board.copy()
         self._is_infinite = infinite
 
@@ -218,8 +223,6 @@ class UCIEngine:
                     f"info depth {info.depth} score {score_str} "
                     f"nodes {info.nodes} nps {info.nps} time {info.time_ms} pv {pv_str}"
                 )
-                if soft_ms > 0 and info.time_ms >= soft_ms:
-                    self.searcher.stop()
 
             result = self.searcher.search(board_copy, limits=limits, on_info=_on_info)
             best_str = result.best_move.to_uci() if result.best_move != Move.NULL else "0000"

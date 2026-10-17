@@ -6,7 +6,5 @@ from .transposition import (
     TTEntry,
     TranspositionTable,
 )
-from .search import SearchInfo, SearchLimits, Searcher, search
-from .time_manager import TimeAllocation, allocate_time
-from .time_manager import TimeAllocation, allocate_time
-
+from .search import Engine, SearchInfo, SearchLimits, Searcher, search, see
+from .time_manager import TimeAllocation, allocate_time, scale_soft_time

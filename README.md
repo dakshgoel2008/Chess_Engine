@@ -1,6 +1,23 @@
-# Castled Realms: A Pygame Chess Engine with AI
+# CastledEngine (`castled`): C + Python Bitboard Chess Engine
 
-Castled Realms is a classic game of chess built with Python and Pygame, featuring a challenging AI opponent. The AI is powered by the NegaMax algorithm with alpha-beta pruning, making for a formidable adversary.
+[![CI](https://github.com/dakshgoel2008/castled_realms/actions/workflows/ci.yml/badge.svg)](https://github.com/dakshgoel2008/castled_realms/actions/workflows/ci.yml)
+[![Lichess BOT @CastledBot](https://img.shields.io/badge/Lichess_BOT-%40CastledBot-blue?logo=lichess)](https://lichess.org/@/CastledBot)
+
+CastledEngine is a high-performance chess engine written in C99 (with a Python CFFI bridge, full UCI protocol, SPRT testing suite, Lichess BOT integration, and a 1200x768 Pygame GUI with Game Review).
+
+## Lichess BOT Integration
+
+CastledEngine can run as an automated Lichess BOT using either the built-in runner (`tools/lichess_bot.py`) or the official `lichess-bot` bridge with `tools/lichess-bot-config.yml`:
+
+```bash
+# Validate the Lichess BOT configuration
+python tools/lichess_bot.py --check-config
+
+# Run with your Lichess BOT API token
+export LICHESS_TOKEN="lip_your_token_here"
+python tools/lichess_bot.py --config tools/lichess-bot-config.yml
+```
+
 
 ## Features
 

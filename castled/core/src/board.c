@@ -302,6 +302,41 @@ void board_unmake_move(Board* board) {
     board->hash = st->hash;
 }
 
+// Pass the turn without moving a piece for null-move pruning.
+void board_make_null_move(Board* board) {
+    State* st = &board->history[board->history_count++];
+    st->move = 0;
+    st->castling = board->castling;
+    st->ep_square = board->ep_square;
+    st->halfmove_clock = board->halfmove_clock;
+    st->hash = board->hash;
+    st->captured_piece = PIECE_NONE;
+
+    board->hash_history[board->hash_history_count++] = board->hash;
+
+    if (board->ep_square != SQ_NONE) {
+        board->hash ^= EP_KEYS[board->ep_square % 8];
+        board->ep_square = SQ_NONE;
+    }
+
+    board->halfmove_clock++;
+    board->turn ^= 1;
+    board->hash ^= SIDE_KEY;
+}
+
+// Restore board state after a null move.
+void board_unmake_null_move(Board* board) {
+    board->history_count--;
+    board->hash_history_count--;
+    State* st = &board->history[board->history_count];
+
+    board->turn ^= 1;
+    board->castling = st->castling;
+    board->ep_square = st->ep_square;
+    board->halfmove_clock = st->halfmove_clock;
+    board->hash = st->hash;
+}
+
 uint64_t board_attackers_to(const Board* board, int sq, uint64_t occupied) {
     uint64_t attackers = 0;
     attackers |= PAWN_ATTACKS[WHITE][sq] & board->pieces[BLACK_PAWN];

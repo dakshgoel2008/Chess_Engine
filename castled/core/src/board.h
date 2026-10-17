@@ -38,6 +38,8 @@ Board* board_copy(const Board* board);
 
 void board_make_move(Board* board, Move move);
 void board_unmake_move(Board* board);
+void board_make_null_move(Board* board);
+void board_unmake_null_move(Board* board);
 
 int board_piece_at(const Board* board, int sq);
 int board_turn(const Board* board);

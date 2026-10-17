@@ -11,6 +11,7 @@ typedef struct {
     int max_depth;
     uint64_t max_nodes;
     int movetime_ms;
+    int soft_movetime_ms;
     volatile int* stop_flag;
 } SearchLimits;
 
@@ -28,6 +29,8 @@ typedef void (*SearchInfoCallback)(
     int depth, int score, uint64_t nodes, int time_ms, const Move* pv, int pv_len
 );
 
+int board_see(const Board* board, Move move);
+
 void search_best_move(
     Board* board,
     const SearchLimits* limits,
@@ -36,4 +39,3 @@ void search_best_move(
 );
 
 #endif // SEARCH_H
-

@@ -12,7 +12,9 @@ from castled.search import (
     SearchLimits,
     TTBound,
     TranspositionTable,
+    scale_soft_time,
     search,
+    see,
 )
 
 
@@ -226,6 +228,79 @@ def test_startpos_reaches_depth_8_under_1s():
         pytest.skip("C backend required for 1-second depth-8 benchmark")
     searcher = Searcher(hash_size_mb=64, _use_c=True)
     info = searcher.search(board, movetime_ms=1000)
-    assert info.depth >= 8
+    assert info.depth >= 10
     assert info.best_move in board.legal_moves
+
+
+def test_null_move_make_unmake_c_and_python_parity():
+    fen = "rnbqkbnr/pppp1ppp/8/4pP2/8/8/PPPPP1PP/RNBQKBNR w KQkq e6 0 3"
+    for use_c in (True, False):
+        board = Board(fen, _use_c=use_c)
+        orig_fen = board.to_fen()
+        orig_hash = board.zobrist_hash
+        assert board.has_non_pawn_material() is True
+
+        board.push_null()
+        assert int(board.turn) == 1
+        assert board.ep_square == 64
+        assert board.zobrist_hash != orig_hash
+
+        board.pop_null()
+        assert board.to_fen() == orig_fen
+        assert board.zobrist_hash == orig_hash
+
+
+def test_static_exchange_evaluation_see_cases():
+    # 1. Poisoned pawn: Queen on d4 captures pawn on d7 defended by Queen on d8 -> -800
+    b1_c = Board("3q2k1/3p1ppp/8/8/r2Q4/8/5PPP/4R1K1 w - - 0 1", _use_c=True)
+    b1_py = Board("3q2k1/3p1ppp/8/8/r2Q4/8/5PPP/4R1K1 w - - 0 1", _use_c=False)
+    for b in (b1_c, b1_py):
+        m_poison = b.parse_uci("d4d7")
+        m_free = b.parse_uci("d4a4")
+        assert see(b, m_poison) == -800
+        assert see(b, m_free) == 500
+
+    # 2. X-ray battery: Two White rooks (e1, e2) vs one Black rook (e8) on e5 pawn -> +100
+    xray_fen = "4r1k1/8/8/4p3/8/8/4R3/4R1K1 w - - 0 1"
+    for use_c in (True, False):
+        b = Board(xray_fen, _use_c=use_c)
+        assert see(b, b.parse_uci("e2e5")) == 100
+
+    # 3. Exact C and Python SEE parity across all legal moves in Kiwipete
+    kiwi = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"
+    bc = Board(kiwi, _use_c=True)
+    bpy = Board(kiwi, _use_c=False)
+    for m in bc.legal_moves:
+        assert see(bc, m) == see(bpy, m)
+
+
+def test_aspiration_windows_and_zugzwang_guard():
+    # Depth 5 exercises aspiration windows, LMR, NMP, RFP, FP, killers, and history.
+    fen = "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4"
+    bc = Board(fen, _use_c=True)
+    bpy = Board(fen, _use_c=False)
+    sc = Searcher(hash_size_mb=8, _use_c=True)
+    spy = Searcher(hash_size_mb=8, _use_c=False)
+
+    rc = sc.search(bc, depth=5)
+    rpy = spy.search(bpy, depth=5)
+    assert rc.score == rpy.score
+    assert rc.best_move == rpy.best_move
+
+    # Pure King + Pawn endgame has has_non_pawn_material() == False (zugzwang guard active).
+    kp_fen = "8/8/4k3/4p3/4P3/4K3/8/8 w - - 0 1"
+    for use_c in (True, False):
+        b_kp = Board(kp_fen, _use_c=use_c)
+        assert b_kp.has_non_pawn_material() is False
+        s_kp = Searcher(hash_size_mb=4, _use_c=use_c)
+        res_kp = s_kp.search(b_kp, depth=5)
+        assert res_kp.best_move in b_kp.legal_moves
+
+
+def test_time_manager_v2_scale_soft_time():
+    assert scale_soft_time(100, 300, best_move_changes=0, score_drop_cp=0) == 100
+    assert scale_soft_time(100, 300, best_move_changes=1, score_drop_cp=0) == 135
+    assert scale_soft_time(100, 300, best_move_changes=2, score_drop_cp=40) == 205
+    assert scale_soft_time(100, 150, best_move_changes=3, score_drop_cp=100) == 150
+
 

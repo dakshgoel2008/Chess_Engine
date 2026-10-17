@@ -16,6 +16,8 @@ ffibuilder.cdef("""
 
     void board_make_move(Board* board, uint16_t move);
     void board_unmake_move(Board* board);
+    void board_make_null_move(Board* board);
+    void board_unmake_null_move(Board* board);
 
     int board_generate_legal_moves(Board* board, uint16_t* moves);
     int board_generate_pseudo_legal_moves(const Board* board, uint16_t* moves);
@@ -54,6 +56,7 @@ ffibuilder.cdef("""
         int max_depth;
         uint64_t max_nodes;
         int movetime_ms;
+        int soft_movetime_ms;
         volatile int* stop_flag;
     } SearchLimits;
 
@@ -70,6 +73,8 @@ ffibuilder.cdef("""
     typedef void (*SearchInfoCallback)(
         int depth, int score, uint64_t nodes, int time_ms, const uint16_t* pv, int pv_len
     );
+
+    int board_see(const Board* board, uint16_t move);
 
     void search_best_move(
         Board* board,
