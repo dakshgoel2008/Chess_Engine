@@ -21,10 +21,10 @@ jobs:
           pip install pygame pygbag numpy
 
       - name: Build with pygbag
-        run: pygbag --build Chess/
+        run: pygbag --build gui/
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./Chess/build/web
+          publish_dir: ./gui/build/web

@@ -44,23 +44,17 @@ def _require_pygame() -> None:
 
 
 def load_images(square_size: int = SQUARE_SIZE) -> Dict[str, Any]:
-    """Load and scale all 12 piece PNG sprites from gui/images (with fallback to Chess/images)."""
+    """Load and scale all 12 piece PNG sprites from gui/images."""
     _require_pygame()
     pieces = ["wB", "wK", "wN", "wp", "wQ", "wR", "bB", "bK", "bN", "bp", "bQ", "bR"]
     images: Dict[str, Any] = {}
     gui_dir = os.path.dirname(os.path.abspath(__file__))
-    repo_root = os.path.dirname(gui_dir)
 
     for piece in pieces:
-        candidates = [
-            os.path.join(gui_dir, "images", f"{piece}.png"),
-            os.path.join(repo_root, "Chess", "images", f"{piece}.png"),
-        ]
+        path = os.path.join(gui_dir, "images", f"{piece}.png")
         loaded = None
-        for path in candidates:
-            if os.path.exists(path):
-                loaded = p.transform.smoothscale(p.image.load(path), (square_size, square_size))
-                break
+        if os.path.exists(path):
+            loaded = p.transform.smoothscale(p.image.load(path), (square_size, square_size))
         if loaded is None:
             surf = p.Surface((square_size, square_size), p.SRCALPHA)
             fill = (240, 240, 240) if piece.startswith("w") else (50, 50, 50)

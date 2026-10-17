@@ -30,6 +30,7 @@ castled/core/src/test_perft
 .DS_Store
 Thumbs.db
 
-# Logs
+# Logs & Saved Games
 *.log
 potential_bugs.md
+castled_game.pgn
