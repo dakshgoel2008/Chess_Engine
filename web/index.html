@@ -203,16 +203,16 @@
         </select>
         <select id="diffSelect">
           <option value="Easy">Easy (Depth 2)</option>
-          <option value="Medium" selected>Medium (Depth 4)</option>
-          <option value="Hard">Hard (Depth 5)</option>
-          <option value="Master">Master (Depth 6)</option>
+          <option value="Medium" selected>Medium (Depth 3)</option>
+          <option value="Hard">Hard (Depth 4)</option>
+          <option value="Master">Master (Depth 4)</option>
         </select>
       </div>
 
       <div class="status-line" id="statusText">White to move</div>
 
       <div class="telemetry-card">
-        <div id="telLine1">Eval (NNUE): +0.00 | Depth: 0 | NPS: 0k</div>
+        <div id="telLine1">Eval: +0.00 | Depth: 0 | NPS: 0k</div>
         <div id="telLine2">Nodes: 0</div>
         <div class="pv" id="telLine3">Best: -</div>
       </div>
@@ -300,7 +300,8 @@
     let imagesLoaded = 0;
     PIECE_CODES.forEach(code => {
       const img = new Image();
-      img.src = "images/" + code + ".png";
+      // Pawn sprites are stored as wp.png / bp.png (lowercase p); GitHub Pages paths are case-sensitive.
+      img.src = "images/" + code[0] + (code[1] === "P" ? "p" : code[1]) + ".png";
       img.onload = () => { imagesLoaded++; renderBoard(); };
       IMAGES[code] = img;
     });
@@ -631,7 +632,7 @@
 
       if (info) {
         document.getElementById("telLine1").textContent =
-          `Eval (NNUE): ${whiteScoreCp >= 0 ? "+" : ""}${(whiteScoreCp / 100).toFixed(2)} | Depth: ${info.depth} | NPS: ${Math.round(info.nps / 1000)}k`;
+          `Eval: ${whiteScoreCp >= 0 ? "+" : ""}${(whiteScoreCp / 100).toFixed(2)} | Depth: ${info.depth} | NPS: ${Math.round(info.nps / 1000)}k`;
         document.getElementById("telLine2").textContent = `Nodes: ${info.nodes.toLocaleString()}`;
         document.getElementById("telLine3").textContent = `Best: ${info.pv.join(" ")}`;
       }
@@ -696,7 +697,8 @@
           }
 
           const pc = state.board[sq];
-          if (pc && IMAGES[pc] && IMAGES[pc].complete) {
+          // A failed image is still "complete"; drawing it throws and aborts the whole render.
+          if (pc && IMAGES[pc] && IMAGES[pc].complete && IMAGES[pc].naturalWidth > 0) {
             ctx.drawImage(IMAGES[pc], c * sz + 4, r * sz + 4, sz - 8, sz - 8);
           }
         }
