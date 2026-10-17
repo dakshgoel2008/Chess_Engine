@@ -106,6 +106,8 @@ _SRC_DIR = os.path.join("castled", "core", "src")
 
 if sys.platform == "win32":
     _COMPILE_ARGS = ["/O2"]
+    if platform.machine().lower() in ("x86_64", "amd64"):
+        _COMPILE_ARGS.append("/arch:AVX2")
 else:
     _COMPILE_ARGS = ["-O3", "-std=c99"]
     if platform.machine().lower() in ("x86_64", "amd64"):
