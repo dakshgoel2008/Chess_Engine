@@ -174,14 +174,15 @@ int board_generate_legal_moves(Board* board, Move* moves) {
     return lcount;
 }
 
-int board_generate_captures(const Board* board, Move* moves) {
-    Move pseudo[MAX_MOVES];
-    int pcount = board_generate_pseudo_legal_moves(board, pseudo);
+// Generate all legal capture and promotion moves (used by quiescence search).
+int board_generate_captures(Board* board, Move* moves) {
+    Move legal[MAX_MOVES];
+    int lcount = board_generate_legal_moves(board, legal);
     int ccount = 0;
-    for (int i = 0; i < pcount; i++) {
-        int flags = MOVE_FLAGS(pseudo[i]);
-        if (flags == CAPTURE || flags == EP_CAPTURE || flags >= PROMO_Q) {
-            moves[ccount++] = pseudo[i];
+    for (int i = 0; i < lcount; i++) {
+        int flags = MOVE_FLAGS(legal[i]);
+        if (flags == CAPTURE || flags == EP_CAPTURE || flags >= PROMO_N) {
+            moves[ccount++] = legal[i];
         }
     }
     return ccount;

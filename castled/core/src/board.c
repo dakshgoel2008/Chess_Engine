@@ -269,11 +269,6 @@ void board_unmake_move(Board* board) {
     int to = MOVE_TO(st->move);
     int flags = MOVE_FLAGS(st->move);
     
-    board->castling = st->castling;
-    board->ep_square = st->ep_square;
-    board->halfmove_clock = st->halfmove_clock;
-    board->hash = st->hash;
-    
     int pc = board->mailbox[to];
     
     if (flags >= PROMO_N) {
@@ -300,6 +295,11 @@ void board_unmake_move(Board* board) {
         remove_piece(board, r_to);
         put_piece(board, (us == WHITE) ? WHITE_ROOK : BLACK_ROOK, r_from);
     }
+
+    board->castling = st->castling;
+    board->ep_square = st->ep_square;
+    board->halfmove_clock = st->halfmove_clock;
+    board->hash = st->hash;
 }
 
 uint64_t board_attackers_to(const Board* board, int sq, uint64_t occupied) {
@@ -332,15 +332,36 @@ bool board_is_repetition(const Board* board) {
     return count >= 2;
 }
 
+// True when neither side has enough material to force checkmate.
 bool board_is_insufficient_material(const Board* board) {
     if (board->pieces[WHITE_PAWN] || board->pieces[BLACK_PAWN] ||
         board->pieces[WHITE_ROOK] || board->pieces[BLACK_ROOK] ||
         board->pieces[WHITE_QUEEN] || board->pieces[BLACK_QUEEN]) {
         return false;
     }
-    return true; // Simple stub
+
+    int wn = popcount(board->pieces[WHITE_KNIGHT]);
+    int bn = popcount(board->pieces[BLACK_KNIGHT]);
+    int wb = popcount(board->pieces[WHITE_BISHOP]);
+    int bb = popcount(board->pieces[BLACK_BISHOP]);
+    int total_minors = wn + bn + wb + bb;
+
+    if (total_minors <= 1) {
+        return true;
+    }
+
+    if (total_minors == 2 && wn == 0 && bn == 0 && wb == 1 && bb == 1) {
+        int w_sq = lsb(board->pieces[WHITE_BISHOP]);
+        int b_sq = lsb(board->pieces[BLACK_BISHOP]);
+        int w_color = ((w_sq / 8) + (w_sq % 8)) & 1;
+        int b_color = ((b_sq / 8) + (b_sq % 8)) & 1;
+        return w_color == b_color;
+    }
+
+    return false;
 }
 
 bool board_is_draw(const Board* board) {
     return board->halfmove_clock >= 100 || board_is_repetition(board) || board_is_insufficient_material(board);
 }
+

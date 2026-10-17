@@ -19,7 +19,7 @@ ffibuilder.cdef("""
 
     int board_generate_legal_moves(Board* board, uint16_t* moves);
     int board_generate_pseudo_legal_moves(const Board* board, uint16_t* moves);
-    int board_generate_captures(const Board* board, uint16_t* moves);
+    int board_generate_captures(Board* board, uint16_t* moves);
 
     bool board_is_check(const Board* board);
     bool board_is_checkmate(Board* board);
