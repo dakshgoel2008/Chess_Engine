@@ -1,14 +1,28 @@
 .venv
+env/
 
-# Cache-files
+# Python
 __pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.so
+*.dylib
 
-# editor specific 
+# NNUE weights
+*.nnue
+*.pt
+
+# Editor
 .vscode/
+.idea/
 
-# OS-specific
+# OS
 .DS_Store
+Thumbs.db
 
-# Log files
+# Logs
 *.log
 potential_bugs.md
