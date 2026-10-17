@@ -50,6 +50,7 @@ class SearchInfo:
     time_ms: int
     pv: List[Move] = field(default_factory=list)
     best_move: Move = Move.NULL
+    multipv: int = 1
 
 
 # Compute attackers to `sq` under custom occupancy bitboard `occ` in pure Python.
@@ -308,6 +309,107 @@ class Searcher:
         if self._use_c and board._use_c:
             return self._search_c(board, max_depth, max_nodes, max_time, soft_time, active_nnue, on_info)
         return self._search_python(board, max_depth, max_nodes, max_time, soft_time, active_nnue, on_info)
+
+    # Search and rank the top `multipv` distinct root moves with full principal variations.
+    def search_multipv(
+        self,
+        board: Board,
+        multipv: int = 1,
+        depth: Optional[int] = None,
+        movetime_ms: Optional[int] = None,
+        nodes: Optional[int] = None,
+        use_nnue: Optional[bool] = None,
+        on_info: Optional[Callable[[SearchInfo], None]] = None,
+    ) -> List[SearchInfo]:
+        if multipv <= 1:
+            info = self.search(
+                board,
+                depth=depth,
+                movetime_ms=movetime_ms,
+                nodes=nodes,
+                use_nnue=use_nnue,
+                on_info=on_info,
+            )
+            info.multipv = 1
+            return [info]
+
+        root_moves = board.legal_moves
+        if not root_moves:
+            score = -SCORE_MATE if board.is_check() else 0
+            return [
+                SearchInfo(
+                    depth=0,
+                    score=score,
+                    nodes=0,
+                    nps=0,
+                    time_ms=0,
+                    pv=[],
+                    best_move=Move.NULL,
+                    multipv=1,
+                )
+            ]
+
+        active_nnue = use_nnue if use_nnue is not None else self.use_nnue
+        target_depth = depth if depth is not None else (5 if movetime_ms else 4)
+        target_depth = max(1, min(MAX_PLY - 1, target_depth))
+        per_move_time = max(1, movetime_ms // len(root_moves)) if (movetime_ms and movetime_ms > 0) else 0
+        per_move_nodes = max(1, nodes // len(root_moves)) if (nodes and nodes > 0) else 0
+
+        start_ms = time.monotonic() * 1000.0
+        total_nodes = 0
+        scored_lines: List[tuple[int, Move, List[Move]]] = []
+
+        for m in root_moves:
+            board.push(m)
+            if board.is_checkmate():
+                line_score = SCORE_MATE - 1
+                line_pv = [m]
+                total_nodes += 1
+            elif board.is_stalemate() or board.is_draw() or board.is_insufficient_material():
+                line_score = 0
+                line_pv = [m]
+                total_nodes += 1
+            elif target_depth == 1:
+                eval_fn = evaluate_nnue_numpy if active_nnue else evaluate_python
+                line_score = -int(eval_fn(board))
+                line_pv = [m]
+                total_nodes += 1
+            else:
+                child = self.search(
+                    board,
+                    depth=target_depth - 1,
+                    movetime_ms=per_move_time if per_move_time > 0 else None,
+                    nodes=per_move_nodes if per_move_nodes > 0 else None,
+                    use_nnue=active_nnue,
+                )
+                line_score = -child.score
+                line_pv = [m] + child.pv
+                total_nodes += max(1, child.nodes)
+            board.pop()
+            scored_lines.append((line_score, m, line_pv))
+
+        scored_lines.sort(key=lambda item: item[0], reverse=True)
+        elapsed = max(1, int(time.monotonic() * 1000.0 - start_ms))
+        nps = int(total_nodes * 1000 // elapsed)
+
+        k = min(multipv, len(scored_lines))
+        results: List[SearchInfo] = []
+        for idx in range(k):
+            l_score, l_move, l_pv = scored_lines[idx]
+            info = SearchInfo(
+                depth=target_depth,
+                score=l_score,
+                nodes=total_nodes,
+                nps=nps,
+                time_ms=elapsed,
+                pv=l_pv,
+                best_move=l_move,
+                multipv=idx + 1,
+            )
+            results.append(info)
+            if on_info is not None:
+                on_info(info)
+        return results
 
     def _search_c(
         self,

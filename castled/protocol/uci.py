@@ -5,6 +5,7 @@ import threading
 from typing import Callable, List, Optional, TextIO
 
 from .. import __version__
+from ..book.polyglot import PolyglotBook
 from ..core.board import Board
 from ..core.move import Move
 from ..core.types import STARTING_FEN
@@ -37,6 +38,7 @@ class UCIEngine:
         self.options = EngineOptions()
         self.board = Board(STARTING_FEN, _use_c=_use_c)
         self.searcher = Searcher(hash_size_mb=self.options.hash_size_mb, _use_c=_use_c)
+        self.book: Optional[PolyglotBook] = None
         self._out = out_stream if out_stream is not None else sys.stdout
         self._out_lock = threading.Lock()
         self._worker: Optional[threading.Thread] = None
@@ -114,6 +116,7 @@ class UCIEngine:
 
         prev_hash = self.options.hash_size_mb
         prev_eval_file = self.options.eval_file
+        prev_book_file = self.options.book_file
         self.options.set_option(name, value)
         if self.options.hash_size_mb != prev_hash:
             self.searcher.tt.resize(self.options.hash_size_mb)
@@ -123,6 +126,14 @@ class UCIEngine:
                 self.searcher.load_nnue(self.options.eval_file)
             except ValueError:
                 pass
+        if self.options.book_file != prev_book_file:
+            if not self.options.book_file:
+                self.book = None
+            else:
+                try:
+                    self.book = PolyglotBook(self.options.book_file)
+                except ValueError:
+                    self.book = None
 
     def _handle_position(self, tokens: List[str]):
         if not tokens:
@@ -189,6 +200,12 @@ class UCIEngine:
                 i += 2
             else:
                 i += 1
+
+        if self.book is not None and not infinite:
+            book_move = self.book.probe(self.board)
+            if book_move is not None:
+                self._send(f"bestmove {book_move.to_uci()}")
+                return
 
         legal_count = len(self.board.legal_moves)
         soft_ms = 0

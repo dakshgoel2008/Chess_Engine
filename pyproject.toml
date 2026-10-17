@@ -5,11 +5,24 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "castled"
 version = "0.1.0"
-description = "A production-grade chess engine with NNUE evaluation"
+description = "A production-grade C + Python chess engine with NNUE evaluation"
 authors = [{ name = "Daksh" }]
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
+keywords = ["chess", "engine", "uci", "nnue", "bitboard", "cffi"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: C",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Games/Entertainment :: Board Games",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 
 dependencies = [
     "numpy>=1.24",
@@ -20,12 +33,26 @@ dependencies = [
 dev = ["pytest>=7.0", "ruff>=0.4"]
 training = ["torch>=2.0", "matplotlib"]
 gui = ["pygame-ce>=2.5"]
+docs = ["mkdocs>=1.5", "mkdocs-material>=9.5"]
 
 [project.scripts]
 castled = "castled.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["castled*", "gui*"]
+
+[tool.setuptools.package-data]
+"castled.eval.weights" = ["*.nnue"]
+"castled.book" = ["*.bin"]
+"castled.training.configs" = ["*.yaml"]
+"castled.core.src" = ["*.c", "*.h"]
+"gui.images" = ["*.png"]
+
+[tool.cibuildwheel]
+build = "cp310-* cp311-* cp312-*"
+skip = "*-musllinux* *-win32 *-manylinux_i686"
+test-requires = ["pytest>=7.0"]
+test-command = "pytest {project}/tests/test_board.py {project}/tests/test_nnue.py"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

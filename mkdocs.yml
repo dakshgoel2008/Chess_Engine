@@ -1,0 +1,13 @@
+site_name: CastledEngine Documentation
+site_description: Production-grade C99 + Python CFFI Chess Engine with NNUE Evaluation
+repo_url: https://github.com/dakshgoel2008/castled_realms
+
+theme:
+  name: material
+
+nav:
+  - Quick Start: index.md
+  - Python API Reference: api.md
+  - UCI Protocol & Options: uci.md
+  - Architecture & NNUE: architecture.md
+

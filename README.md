@@ -1,98 +1,67 @@
-# CastledEngine (`castled`): C + Python Bitboard Chess Engine
+# Chess Engine (`castled`)
 
 [![CI](https://github.com/dakshgoel2008/castled_realms/actions/workflows/ci.yml/badge.svg)](https://github.com/dakshgoel2008/castled_realms/actions/workflows/ci.yml)
 [![Lichess BOT @CastledBot](https://img.shields.io/badge/Lichess_BOT-%40CastledBot-blue?logo=lichess)](https://lichess.org/@/CastledBot)
 
-CastledEngine is a high-performance chess engine written in C99 (with a Python CFFI bridge, full UCI protocol, SPRT testing suite, Lichess BOT integration, and a 1200x768 Pygame GUI with Game Review).
+**CastledEngine** (`castled`) is a from-scratch **C99 + Python (CFFI)** chess engine and pip-installable library. It combines a 64-bit magic-bitboard move generator, Principal Variation Search (PVS), an incremental AVX2 SIMD neural network (**NNUE**), an end-to-end self-play training pipeline, a UCI server, and a 1200x768 Pygame GUI with post-game review.
 
-## Lichess BOT Integration
+---
 
-CastledEngine can run as an automated Lichess BOT using either the built-in runner (`tools/lichess_bot.py`) or the official `lichess-bot` bridge with `tools/lichess-bot-config.yml`:
+## Under the Hood (Engineering Highlights)
 
+```mermaid
+flowchart LR
+    Py["Python API / UCI / GUI"] --> CFFI["CFFI C Bridge"]
+    CFFI --> BB["64-bit Magic Bitboards + Zobrist"]
+    CFFI --> Search["PVS + NMP + LMR + SEE + TT"]
+    Search --> NNUE["AVX2 Incremental NNUE (int16)"]
+    Search --> HCE["Tapered PeSTO Classical Eval"]
+```
+
+- **64-Bit Magic Bitboards (`27.7M nodes/sec`)**: $O(1)$ sliding piece attack lookups using precomputed magic multipliers, copy-make/unmake state stack, and incremental 64-bit Zobrist hashing (`perft(6)` = 119M nodes in `4.29s`).
+- **Principal Variation Search (Depth 14 in 1.0s)**: Iterative deepening with Aspiration Windows ($\Delta = 35$ cp), lockless-style Zobrist Transposition Table, Null-Move Pruning (with zugzwang guard), Late Move Reductions (LMR), Static Exchange Evaluation (SEE) capture ordering/pruning, Reverse Futility Pruning, Killer moves, and History heuristics (**+459 Elo** over baseline alpha-beta in SPRT).
+- **Incremental `int16` NNUE Inference (`768 -> 256x2 -> 1`)**: Perspective-based neural network with Squared Clipped ReLU ($\text{clamp}(x, 0, 255)^2$) activation. White and Black accumulators update incrementally during `make_move`/`unmake_move` via **AVX2 SIMD** (`_mm256_add_epi16` / `_mm256_sub_epi16`).
+- **Self-Play NNUE Training Pipeline**: Generates quiet self-play positions in a compact binary format (`CSDT`), trains with Adam + cosine annealing on a blended WDL + search-score sigmoid MSE loss, and quantizes weights to `int16` (`QA=255, QB=64`).
+- **Polyglot Book & Desktop GUI**: $O(\log N)$ binary-searched `.bin` opening book prober and a 60 FPS Pygame interface featuring a live win-probability eval bar, PGN import/export, and automated Game Review (Blunder/Mistake/Best classification).
+
+---
+
+## Quick Start
+
+### 1. Install
 ```bash
-# Validate the Lichess BOT configuration
-python tools/lichess_bot.py --check-config
+git clone https://github.com/dakshgoel2008/castled_realms.git
+cd castled_realms
+pip install -e ".[dev,gui]"
+```
 
-# Run with your Lichess BOT API token
+### 2. Use as a Python Library
+```python
+from castled import Board, Engine
+
+board = Board()
+
+with Engine(hash_mb=64, nnue=True, use_book=True) as engine:
+    # Search for 0.5 seconds
+    move = engine.best_move(board, time=0.5)
+    board.push(move)
+
+    # MultiPV analysis (top 3 candidate lines)
+    for line in engine.analyse(board, depth=6, multipv=3):
+        pv = " ".join(m.to_uci() for m in line.pv)
+        print(f"#{line.multipv} | {line.score:+d} cp | depth {line.depth} | {pv}")
+```
+
+### 3. Run from the CLI
+```bash
+castled play               # Launch the 1200x768 Pygame GUI + Game Review
+castled uci                # Start the UCI engine (for CuteChess, Arena, En Croissant)
+castled perft --depth 6    # Verify move generation speed and accuracy
+castled bench --depth 7    # Run tactical search benchmark
+```
+
+### 4. Run as a Lichess BOT
+```bash
 export LICHESS_TOKEN="lip_your_token_here"
 python tools/lichess_bot.py --config tools/lichess-bot-config.yml
 ```
-
-
-## Features
-
-- **Classic Chess Gameplay**: Enjoy a game of chess with all the standard rules.
-- **Smart AI Opponent**: Test your skills against an AI that uses the NegaMax algorithm with alpha-beta pruning to find the best move.
-- **Advanced Chess Mechanics**: The game supports en passant, castling, and pawn promotion. Pawns are auto-promoted to a Queen.
-- **Move Animation**: Smooth animations for piece movements, including castling.
-- **Undo Moves**: Take back your last move with the 'z' key.
-- **Game Reset**: Start a new game by pressing the 'r' key when the game is over.
-
-## Getting Started
-
-### Prerequisites
-
-- Python 3.11
-- Pygame
-- pygbag
-
-### Installation and Running the Game
-
-1.  **Clone the repository:**
-    ```bash
-    git clone [https://github.com/dakshgoel2008/castled_realms.git](https://github.com/dakshgoel2008/castled_realms.git)
-    cd castled_realms/Castled_Realms-c0ef02e72fed7eec6e0d619d0c4877f25a9790ca
-    ```
-2.  **Install dependencies:**
-    ```bash
-    pip install -r requirement.txt
-    ```
-3.  **Run the game:**
-    ```bash
-    python Chess/main.py
-    ```
-
-## Project Structure
-
-The project is organized into the following files and directories:
-
-- `Chess/main.py`: The main entry point for the game. It contains the game loop and handles user input.
-- `Chess/engine.py`: Contains the `State` class, which manages the game's state, including the board, move log, and castling rights. It also includes the `Move` class for representing moves.
-- `Chess/smartMoveFinder.py`: Implements the AI's move-finding logic using the NegaMax algorithm with alpha-beta pruning.
-- `Chess/ui.py`: Handles the user interface, including drawing the board, pieces, and animations.
-- `Chess/config.py`: Contains configuration variables for the game, such as screen dimensions and AI depth.
-- `Chess/images/`: Contains the images for the chess pieces.
-- `.github/workflows/deploy.yml`: GitHub Actions workflow for building and deploying the game to GitHub Pages.
-
-## The AI Opponent
-
-The AI opponent uses a sophisticated algorithm to determine its moves:
-
-- **NegaMax with Alpha-Beta Pruning**: The core of the AI is the NegaMax algorithm, which is a variant of MiniMax. It's enhanced with alpha-beta pruning to reduce the number of nodes evaluated in the search tree.
-- **Transposition Table**: A transposition table is used to store previously evaluated board positions, which helps to speed up the search by avoiding redundant calculations.
-- **Move Ordering**: Moves are ordered to improve the efficiency of alpha-beta pruning. Captures are prioritized using the Most Valuable Victim - Least Valuable Attacker (MVV-LVA) heuristic.
-- **Board Evaluation**: The AI evaluates board positions based on several factors:
-    - **Material**: The value of the pieces on the board.
-    - **Positional Advantage**: Piece-square tables are used to give pieces a bonus for being on strategically advantageous squares.
-    - **King Safety**: The AI considers the safety of the kings.
-    - **Pawn Structure**: The structure of the pawns is evaluated.
-    - **Mobility**: The number of available moves for the pieces is taken into account.
-
-## Performance Optimizations
-
-The engine has undergone several under-the-hood optimizations to improve calculation speed and overall application responsiveness:
-
-- **Asynchronous AI Execution**: The AI search calculation is offloaded to a background thread using a `ThreadPoolExecutor`. This completely eliminates UI freezing during deep searches and keeps the game window responsive while the AI thinks.
-- **Fast State Hashing**: The transposition table uses highly efficient byte-level hashing (`hash(board.tobytes())`) over the NumPy array representation of the board, significantly outperforming standard string-based hashing.
-- **Single-Pass Evaluation**: Redundant board loops in the evaluation function have been consolidated into a single pass, massively reducing the overhead of processing piece material and positional scoring.
-
-## Future Improvements
-
-- **Enhanced AI**: I am exploring advanced search techniques and looking forward for the integration of Neural Networks to make the AI even smarter and faster.
-- **Improved Mobility Evaluation**: Looking forward to improve the mobility evaluation for all the pieces.
-
-## Sample Screenshots
-
-- ### Game Images
-    ![Start Game](images/Game-Start.png)
-    ![Scenerio given to AI](images/Example-Scenerio.png)
