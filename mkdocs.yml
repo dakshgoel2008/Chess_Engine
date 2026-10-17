@@ -1,6 +1,6 @@
 site_name: CastledEngine Documentation
 site_description: Production-grade C99 + Python CFFI Chess Engine with NNUE Evaluation
-repo_url: https://github.com/dakshgoel2008/castled_realms
+repo_url: https://github.com/dakshgoel2008/Chess_Engine
 
 theme:
   name: material

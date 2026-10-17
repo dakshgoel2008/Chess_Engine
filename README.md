@@ -1,6 +1,6 @@
 # CastledEngine (`castled`)
 
-[![CI](https://github.com/dakshgoel2008/castled_realms/actions/workflows/ci.yml/badge.svg)](https://github.com/dakshgoel2008/castled_realms/actions/workflows/ci.yml)
+[![CI](https://github.com/dakshgoel2008/Chess_Engine/actions/workflows/ci.yml/badge.svg)](https://github.com/dakshgoel2008/Chess_Engine/actions/workflows/ci.yml)
 [![Lichess BOT @CastledBot](https://img.shields.io/badge/Lichess_BOT-%40CastledBot-blue?logo=lichess)](https://lichess.org/@/CastledBot)
 
 **CastledEngine** (`castled`) is a from-scratch **C99 + Python (CFFI)** chess engine and pip-installable library. It combines a 64-bit magic-bitboard move generator, Principal Variation Search (PVS), an incremental AVX2 SIMD neural network (**NNUE**), an end-to-end self-play training pipeline, a UCI server, and a 1200x768 Pygame GUI with post-game review.
@@ -26,13 +26,39 @@ flowchart LR
 
 ---
 
-## Quick Start
+## Play Against CastledEngine
+
+You need **Python 3.10+** and a **C compiler**, because the engine core is compiled during install:
+
+- **Windows**: [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the "Desktop development with C++" workload
+- **macOS**: `xcode-select --install`
+- **Linux**: `gcc` (e.g. `sudo apt install build-essential`)
+
+```bash
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install "castled @ git+https://github.com/dakshgoel2008/Chess_Engine.git"
+castled play
+```
+
+`castled play` opens the desktop GUI: choose to play White, Black, two-player, or watch AI vs AI, then use **G** for a post-game review. Options:
+
+```bash
+castled play --mode black --difficulty Hard
+castled play --pgn my_game.pgn     # load / save a game
+```
+
+If the `castled` command is not found, run `python -m castled play` instead.
+
+---
+
+## Quick Start (Development)
 
 ### 1. Install
 ```bash
-git clone https://github.com/dakshgoel2008/castled_realms.git
-cd castled_realms
-pip install -e ".[dev,gui]"
+git clone https://github.com/dakshgoel2008/Chess_Engine.git
+cd Chess_Engine
+pip install -e ".[dev]"
 ```
 
 ### 2. Use as a Python Library

@@ -27,6 +27,7 @@ classifiers = [
 dependencies = [
     "numpy>=1.24",
     "cffi>=1.15",
+    "pygame-ce>=2.5",
 ]
 
 [project.optional-dependencies]

@@ -1,4 +1,4 @@
-"""Root entrypoint for launching the CastledEngine Pygame GUI (desktop and pygbag WASM)."""
+"""Root entrypoint for launching the CastledEngine Pygame GUI."""
 
 import asyncio
 from gui.main import main
