@@ -7,3 +7,6 @@ from .transposition import (
     TranspositionTable,
 )
 from .search import SearchInfo, SearchLimits, Searcher, search
+from .time_manager import TimeAllocation, allocate_time
+from .time_manager import TimeAllocation, allocate_time
+
