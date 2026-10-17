@@ -245,22 +245,41 @@ void nnue_refresh_accumulator(Board* board) {
     board->nnue_epoch = g_weights_epoch;
 }
 
+// Sum of SCReLU(acc[i]) * w[i] over one hidden layer, computed exactly in 64-bit.
+// clamp(acc, 0, QA)^2 <= 65025 and |w| <= 32768, so each product fits in int32
+// (|p| <= 2130739200 < 2^31); only the running sum needs 64 bits.
+static int64_t screlu_dot(const int16_t* acc, const int16_t* w) {
+#if defined(__AVX2__)
+    const __m128i zero = _mm_setzero_si128();
+    const __m128i qa = _mm_set1_epi16(NNUE_QA);
+    __m256i sum = _mm256_setzero_si256();
+    for (int i = 0; i < NNUE_HIDDEN_SIZE; i += 8) {
+        __m128i v = _mm_loadu_si128((const __m128i*)(acc + i));
+        v = _mm_min_epi16(_mm_max_epi16(v, zero), qa);
+        __m256i v32 = _mm256_cvtepi16_epi32(v);
+        __m256i w32 = _mm256_cvtepi16_epi32(_mm_loadu_si128((const __m128i*)(w + i)));
+        __m256i p = _mm256_mullo_epi32(_mm256_mullo_epi32(v32, v32), w32);
+        sum = _mm256_add_epi64(sum, _mm256_cvtepi32_epi64(_mm256_castsi256_si128(p)));
+        sum = _mm256_add_epi64(sum, _mm256_cvtepi32_epi64(_mm256_extracti128_si256(p, 1)));
+    }
+    __m128i s2 = _mm_add_epi64(_mm256_castsi256_si128(sum), _mm256_extracti128_si256(sum, 1));
+    s2 = _mm_add_epi64(s2, _mm_unpackhi_epi64(s2, s2));
+    return (int64_t)_mm_cvtsi128_si64(s2);
+#else
+    int64_t sum = 0;
+    for (int i = 0; i < NNUE_HIDDEN_SIZE; i++) {
+        int32_t v = acc[i];
+        if (v < 0) v = 0;
+        else if (v > NNUE_QA) v = NNUE_QA;
+        sum += (int64_t)(v * v * (int32_t)w[i]);
+    }
+    return sum;
+#endif
+}
+
 // Run SCReLU activation and output dot product on a pair of perspective accumulators.
 static int forward_from_acc(const int16_t* us_acc, const int16_t* them_acc) {
-    int64_t sum = 0;
-
-    for (int i = 0; i < NNUE_HIDDEN_SIZE; i++) {
-        int32_t u = us_acc[i];
-        if (u < 0) u = 0;
-        else if (u > NNUE_QA) u = NNUE_QA;
-
-        int32_t t = them_acc[i];
-        if (t < 0) t = 0;
-        else if (t > NNUE_QA) t = NNUE_QA;
-
-        sum += (int64_t)(u * u) * (int64_t)g_w2[i];
-        sum += (int64_t)(t * t) * (int64_t)g_w2[NNUE_HIDDEN_SIZE + i];
-    }
+    int64_t sum = screlu_dot(us_acc, g_w2) + screlu_dot(them_acc, g_w2 + NNUE_HIDDEN_SIZE);
 
     int64_t out = (sum / NNUE_QA) + (int64_t)g_b2;
     int64_t eval_cp = (out * NNUE_SCALE) / (NNUE_QA * NNUE_QB);
