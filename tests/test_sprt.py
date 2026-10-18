@@ -1,5 +1,6 @@
 """Tests for SPRT math, opening suite validation, cutechess-cli command generation, and match runner."""
 
+import os
 import subprocess
 import sys
 
@@ -116,3 +117,34 @@ def test_internal_sprt_runner_and_cli_execution():
     assert "Games:" in proc.stdout
     assert "Elo difference:" in proc.stdout
     assert "Verdict:" in proc.stdout
+
+
+def test_elo_estimate_fit_and_gauntlet_against_uci_engine():
+    import sys
+
+    from tools.elo_estimate import LevelResult, fit_rating, run_gauntlet
+
+    even, margin = fit_rating([LevelResult(elo=1800, wins=5, draws=0, losses=5)])
+    assert abs(even - 1800) <= 1 and 100 < margin < 600
+    stronger, _ = fit_rating([LevelResult(elo=1800, wins=15, draws=0, losses=5)])
+    assert 1950 <= stronger <= 2000  # 75% score is about +191 Elo
+
+    # CastledEngine's own UCI mode stands in for Stockfish (it ignores the strength options).
+    import tempfile
+
+    from castled.core.pgn import parse_pgn
+
+    with tempfile.TemporaryDirectory() as tmp:
+        pgn_path = os.path.join(tmp, "games.pgn")
+        results, name = run_gauntlet(
+            [sys.executable, "-m", "castled", "uci"], [1500], games_per_level=2, movetime_ms=20,
+            openings=["r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3"], max_plies=12,
+            verbose=False, pgn_path=pgn_path,
+        )
+        assert results[0].games == 2
+        assert "Castled" in name
+        games = open(pgn_path, encoding="utf-8").read().strip().split("\n\n[Event")
+        assert len(games) == 2
+        first = parse_pgn(games[0])
+        assert first.headers["FEN"].startswith("r1bqkbnr")
+        assert len(first.moves) == 12

@@ -11,13 +11,13 @@ engine:
   uci_options:
     Hash: 128
     Threads: 1
-    MoveOverhead: 30
-    UseNNUE: true
+    MoveOverhead: 100
+    UseNNUE: false  # classical eval is currently stronger than the NNUE
   polyglot:
     enabled: false
     book:
       standard:
-        - "castled/book/opening.bin"
+        - "castled/book/default_book.bin"
     max_depth: 16
     selection: "weighted_random"
 
@@ -40,3 +40,10 @@ challenge:
     - "casual"
     - "rated"
 
+matchmaking:
+  allow_matchmaking: false        # or run with --matchmaking
+  challenge_initial_time: 180     # seconds (3+2 blitz)
+  challenge_increment: 2
+  challenge_mode: "rated"
+  opponent_rating_difference: 300
+  challenge_timeout: 30           # cancel unanswered challenges after this many seconds

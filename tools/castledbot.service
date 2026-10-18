@@ -1,0 +1,28 @@
+# systemd unit that keeps the CastledBot Lichess bot online 24/7 and restarts it on crash or reboot.
+#
+# Install (adjust User and paths if your user is not "ubuntu"):
+#   sudo cp tools/castledbot.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now castledbot
+# Logs:
+#   journalctl -u castledbot -f
+#
+# The token lives outside the repository in /home/ubuntu/castledbot.env (chmod 600):
+#   LICHESS_TOKEN=lip_xxxxxxxx
+
+[Unit]
+Description=CastledBot Lichess bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Chess_Engine
+EnvironmentFile=/home/ubuntu/castledbot.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/ubuntu/Chess_Engine/.venv/bin/python tools/lichess_bot.py --config tools/lichess-bot-config.yml
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
