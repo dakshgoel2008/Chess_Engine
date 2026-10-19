@@ -99,30 +99,3 @@ castled uci                # Start the UCI engine (for CuteChess, Arena, En Croi
 castled perft --depth 6    # Verify move generation speed and accuracy
 castled bench --depth 7    # Run tactical search benchmark
 ```
-
-### 4. Run as a Lichess BOT
-1. Create a **new** Lichess account for the bot (it must not have played any games).
-2. Logged in as that account, create a token at <https://lichess.org/account/oauth/token> with the **"Play games with the bot API"** (`bot:play`) scope.
-3. Upgrade the account to a BOT (one-time and irreversible), then start the bot:
-
-```bash
-export LICHESS_TOKEN="lip_your_token_here"
-python tools/lichess_bot.py --upgrade-account
-python tools/lichess_bot.py --config tools/lichess-bot-config.yml
-```
-
-The bot accepts challenges that match `tools/lichess-bot-config.yml` (time controls, rated/casual, one game at a time) and stays online while the script runs. Challenge it from your normal account to test it.
-
-To build a rating without playing it yourself, let it challenge other online BOTs near its rating (rated 3+2 by default, see the `matchmaking` section of the config):
-
-```bash
-python tools/lichess_bot.py --matchmaking
-```
-
-### 5. Estimate Elo offline against Stockfish
-Plays a gauntlet against Stockfish limited to fixed `UCI_Elo` levels and fits one rating to all results:
-
-```bash
-sudo apt install stockfish        # or: brew install stockfish
-python tools/elo_estimate.py --levels 1500 1800 2100 2400 --games 20 --movetime-ms 100
-```
